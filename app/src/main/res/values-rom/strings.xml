@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Listick Fake GPS</string>
+    <string name="app_name">Quiqqy Hates Blackboxes</string>
     <string name="settings">Opțiuni</string>
     <string name="continue_text">Continuați</string>
     <string name="permissions">Permisiuni</string>
@@ -33,7 +33,7 @@
     <string name="about_of_the_app">Despre aplicație</string>
     <string name="brake_at_turning">Frânează înainte de viraj</string>
     <string name="give_mock_lock_permission">Locații simulate în opțiunile pentru dezvoltatori.</string>
-    <string name="find_and_select_app">Găsiți locații fictive faceți clic și selectați Listick Fake GPS.</string>
+    <string name="find_and_select_app">Găsiți locații fictive faceți clic și selectați Quiqqy Hates Blackboxes.</string>
     <string name="speed">Viteză</string>
     <string name="difference">Diferență</string>
     <string name="version">Versiune</string>
@@ -61,8 +61,8 @@
     <string name="open_settings">Deschide setările</string>
     <string name="back">Înapoi</string>
     <string name="developer_options_disabled">Funcțiile dezvoltatorului sunt dezactivate!</string>
-    <string name="developer_options_instruction">1) Mergi la Setări<![CDATA[<br>]]>2) Găsiți „Despre telefon”<![CDATA[<br>]]>3) Găsiți „Numărul asamblării” și apăsați de 7 ori<![CDATA[<br>]]>4) Reveniți la fereastra principală de setări și găsiți elementul „Pentru dezvoltatori”<![CDATA[<br>]]>5) Localizați „Locații fictive” sau „Simulare locație”<![CDATA[<br>]]>6) Faceți clic și selectați Listick Fake GPS.</string>
-    <string name="developer_options_instruction_miui">1) Accesați Setări<![CDATA[<br>]]>2) Găsiți „Despre telefon”<![CDATA[<br>]]>3) Găsiți „Versiunea MIUI” și apăsați de 5-7 ori<![CDATA[<br>]]>4)  Reveniți la fereastra principală de setări și găsiți „Opțiuni pentru dezvoltatori”<![CDATA[<br>]]>5) Găsiți „Locații fantomă”<![CDATA[<br>]]>6) Faceți clic și selectați Listick Fake GPS.</string>
+    <string name="developer_options_instruction">1) Mergi la Setări<![CDATA[<br>]]>2) Găsiți „Despre telefon”<![CDATA[<br>]]>3) Găsiți „Numărul asamblării” și apăsați de 7 ori<![CDATA[<br>]]>4) Reveniți la fereastra principală de setări și găsiți elementul „Pentru dezvoltatori”<![CDATA[<br>]]>5) Localizați „Locații fictive” sau „Simulare locație”<![CDATA[<br>]]>6) Faceți clic și selectați Quiqqy Hates Blackboxes.</string>
+    <string name="developer_options_instruction_miui">1) Accesați Setări<![CDATA[<br>]]>2) Găsiți „Despre telefon”<![CDATA[<br>]]>3) Găsiți „Versiunea MIUI” și apăsați de 5-7 ori<![CDATA[<br>]]>4)  Reveniți la fereastra principală de setări și găsiți „Opțiuni pentru dezvoltatori”<![CDATA[<br>]]>5) Găsiți „Locații fantomă”<![CDATA[<br>]]>6) Faceți clic și selectați Quiqqy Hates Blackboxes.</string>
     <string name="miui_developer_instruction_link">https://www.youtube.com/watch?v=WjH6Y3oXrRY</string>
     <string name="aosp_developer_instruction_link">https://www.youtube.com/watch?v=XvIodXALSYg</string>
     <string name="oneui_developer_instruction_link">https://www.youtube.com/watch?v=cLGgmAVzu8I</string>

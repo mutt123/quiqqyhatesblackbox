@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Listick Fake GPS</string>
+    <string name="app_name">Quiqqy Hates Blackboxes</string>
     <string name="settings">Налаштування</string>
     <string name="continue_text">Продовжити</string>
     <string name="permissions">Дозволи</string>
@@ -33,7 +33,7 @@
     <string name="about_of_the_app">Про додаток</string>
     <string name="brake_at_turning">Гальмувати перед поворотами</string>
     <string name="give_mock_lock_permission">Для заміни координат, будь ласка, надайте дозвіл "Фіктивні Розташування" в налаштуваннях розробника.</string>
-    <string name="find_and_select_app">Знайдіть пункт "Фіктивні розташування", натисніть та виберіть Listick Fake GPS.</string>
+    <string name="find_and_select_app">Знайдіть пункт "Фіктивні розташування", натисніть та виберіть Quiqqy Hates Blackboxes.</string>
     <string name="speed">Швидкість</string>
     <string name="difference">Відмінність</string>
     <string name="version">Версія</string>
@@ -61,8 +61,8 @@
     <string name="open_settings">Відкрити налаштування</string>
     <string name="back">Назад</string>
     <string name="developer_options_disabled">Функції розробника вимкнено!</string>
-    <string name="developer_options_instruction">1) Перейдіть до налаштувань<![CDATA[<br>]]>2) Знайдіть пункт "Про телефон"<![CDATA[<br>]]>3) Знайдіть пункт "Номер збірки" та натисніть 7 разів<![CDATA[<br>]]>4) Поверніться до головного вікна налаштувань і знайдіть пункт "Для розробників"<![CDATA[<br>]]>5) Знайдіть пункт "Фіктивні розташування" або "Симуляція розташування"<![CDATA[<br>]]>6)  Натисніть та виберіть Listick Fake GPS.</string>
-    <string name="developer_options_instruction_miui">1) Перейдіть в налаштування<![CDATA[<br>]]>2) Знайдіть пункт "Про телефон"<![CDATA[<br>]]>3)  Знайдіть пункт "Версія MIUI" і натисніть 5-7 разів<![CDATA[<br>]]>4) Поверніться до головного вікна налаштувань і знайдіть пункт "Для розробників"<![CDATA[<br>]]>5) Знайдіть пункт "Фіктивні розташування"<![CDATA[<br>]]>6) Натисніть та виберіть Listick Fake GPS.</string>
+    <string name="developer_options_instruction">1) Перейдіть до налаштувань<![CDATA[<br>]]>2) Знайдіть пункт "Про телефон"<![CDATA[<br>]]>3) Знайдіть пункт "Номер збірки" та натисніть 7 разів<![CDATA[<br>]]>4) Поверніться до головного вікна налаштувань і знайдіть пункт "Для розробників"<![CDATA[<br>]]>5) Знайдіть пункт "Фіктивні розташування" або "Симуляція розташування"<![CDATA[<br>]]>6)  Натисніть та виберіть Quiqqy Hates Blackboxes.</string>
+    <string name="developer_options_instruction_miui">1) Перейдіть в налаштування<![CDATA[<br>]]>2) Знайдіть пункт "Про телефон"<![CDATA[<br>]]>3)  Знайдіть пункт "Версія MIUI" і натисніть 5-7 разів<![CDATA[<br>]]>4) Поверніться до головного вікна налаштувань і знайдіть пункт "Для розробників"<![CDATA[<br>]]>5) Знайдіть пункт "Фіктивні розташування"<![CDATA[<br>]]>6) Натисніть та виберіть Quiqqy Hates Blackboxes.</string>
     <string name="miui_developer_instruction_link">https://www.youtube.com/watch?v=WjH6Y3oXrRY</string>
     <string name="aosp_developer_instruction_link">https://www.youtube.com/watch?v=XvIodXALSYg</string>
     <string name="oneui_developer_instruction_link">https://www.youtube.com/watch?v=cLGgmAVzu8I</string>
