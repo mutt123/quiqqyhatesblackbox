@@ -301,7 +301,8 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
                     @Override
                     public void onError() {
                         mUserInterface.setAddressShimmer(false);
-                        mUserInterface.setAddress(mContext.getString(R.string.failed_to_define_address));
+                        String fallbackAddress = String.format("%s, %s", mMap.getMapCenter().getLatitude(), mMap.getMapCenter().getLongitude());
+                        mUserInterface.setAddress(fallbackAddress);
                     }
                 });
 
@@ -502,9 +503,9 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
 
                     @Override
                     public void onError() {
-                        String failed = mContext.getString(R.string.failed_to_define_address);
-                        SpoofingPlaceInfo.originAddress = failed;
-                        SpoofingPlaceInfo.address = failed;
+                        String fallbackAddress = String.format("%s, %s", sourceLat, sourceLong);
+                        SpoofingPlaceInfo.originAddress = fallbackAddress;
+                        SpoofingPlaceInfo.address = fallbackAddress;
                     }
                 });
 
@@ -839,7 +840,12 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
     }
 
     private void initSearch() {
-        mUserInterface.setAddress(mContext.getString(R.string.failed_to_define_address));
+        if (mMap != null && mMap.getMapCenter() != null) {
+            String fallbackAddress = String.format("%s, %s", mMap.getMapCenter().getLatitude(), mMap.getMapCenter().getLongitude());
+            mUserInterface.setAddress(fallbackAddress);
+        } else {
+            mUserInterface.setAddress(mContext.getString(R.string.failed_to_define_address));
+        }
     }
 
 
