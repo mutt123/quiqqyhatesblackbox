@@ -85,6 +85,7 @@ public class JoystickService extends Service {
         if (handler != null && runnable != null)
             handler.removeCallbacks(runnable);
         overlay.removeViews();
+        MockLocProvider.removeProviders();
     }
 
     @Nullable

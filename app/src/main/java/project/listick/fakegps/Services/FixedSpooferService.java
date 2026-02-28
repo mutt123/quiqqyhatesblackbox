@@ -120,6 +120,7 @@ public class FixedSpooferService extends Service {
         } catch (IllegalArgumentException e) {
             android.util.Log.d(project.listick.fakegps.BuildConfig.APPLICATION_ID, null, e);
         }
+        MockLocProvider.removeProviders();
     }
 
 
@@ -287,6 +288,7 @@ public class FixedSpooferService extends Service {
         } catch (IllegalArgumentException e) {
             android.util.Log.d(project.listick.fakegps.BuildConfig.APPLICATION_ID, null, e);
         }
+        MockLocProvider.removeProviders();
     }
 
 

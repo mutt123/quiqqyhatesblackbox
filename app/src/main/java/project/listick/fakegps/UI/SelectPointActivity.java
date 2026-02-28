@@ -130,9 +130,9 @@ public class SelectPointActivity extends Edge2EdgeActivity {
             public void onSingleClick(View v) {
 
                 if (address != null && address.isEmpty()) {
-                    address = getString(R.string.unknown);
+                    address = String.format("%s, %s", mapView.getMapCenter().getLatitude(), mapView.getMapCenter().getLongitude());
                 } else if (address == null) {
-                    address = getString(R.string.unknown);
+                    address = String.format("%s, %s", mapView.getMapCenter().getLatitude(), mapView.getMapCenter().getLongitude());
                 }
 
                 Intent result = new Intent(SelectPointActivity.this, MapsActivity.class);
@@ -173,7 +173,9 @@ public class SelectPointActivity extends Edge2EdgeActivity {
 
                     @Override
                     public void onError() {
-                        addressLabel.setHint(getString(R.string.failed_to_define_address));
+                        String fallbackAddress = String.format("%s, %s", mapView.getMapCenter().getLatitude(), mapView.getMapCenter().getLongitude());
+                        addressLabel.setHint(fallbackAddress);
+                        address = fallbackAddress;
                     }
                 });
                 return false;

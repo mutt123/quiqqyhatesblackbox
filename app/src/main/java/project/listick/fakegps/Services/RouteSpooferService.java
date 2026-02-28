@@ -244,6 +244,7 @@ public class RouteSpooferService extends Service {
             mHandler.removeCallbacks(mainRouteRunnable);
 
         stopForeground(true);
+        MockLocProvider.removeProviders();
     }
 
     public static class FakeRouteInfo {

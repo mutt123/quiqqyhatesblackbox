@@ -35,7 +35,7 @@ public class LocationOperations {
 
                 @Override
                 public void onError() {
-                    SpoofingPlaceInfo.address = mActivity.getString(R.string.failed_to_define_address);
+                    SpoofingPlaceInfo.address = String.format("%s, %s", geoPoint.getLatitude(), geoPoint.getLongitude());
                 }
             });
         }
