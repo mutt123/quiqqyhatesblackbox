@@ -4,7 +4,7 @@ apply plugin: 'com.google.firebase.crashlytics'
 
 def appVersion = '2.7.7'
 def mapsVersion = '6.1.14'
-def appVersionCode = 36
+def appVersionCode = 55
 
 android {
     compileSdkVersion 33
