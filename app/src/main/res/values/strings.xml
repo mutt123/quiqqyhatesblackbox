@@ -179,8 +179,8 @@
     <string name="spoofing_preferences_title">Location spoofing preferences</string>
     <string name="routing_api_preferences_title">Routing API</string>
     <string name="openrouteservice_api_key_title">OpenRouteService API Key</string>
-    <string name="openrouteservice_api_key_summary">Leave blank to use free OpenStreetMap routing. Enter key to use OpenRouteService.</string>
-    <string name="openrouteservice_api_key_dialog">Enter your OpenRouteService API Key (from openrouteservice.org) or leave blank.</string>
+    <string name="openrouteservice_api_key_summary">Required for car routing. Enter your OpenRouteService API key.</string>
+    <string name="openrouteservice_api_key_dialog">Enter your OpenRouteService API Key (from openrouteservice.org) to enable routing.</string>
 
     <string name="measurement_title">Measurement</string>
     <string name="accuracy_title">Accuracy</string>

@@ -120,11 +120,28 @@
     </LinearLayout>
 
 
+    <com.google.android.material.checkbox.MaterialCheckBox
+        android:id="@+id/follow_speed_limit_checkbox"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/speeds_container"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="10dp"
+        android:text="Follow road speed limits" />
+
+    <com.google.android.material.checkbox.MaterialCheckBox
+        android:id="@+id/smooth_turns_checkbox"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/follow_speed_limit_checkbox"
+        android:layout_marginStart="10dp"
+        android:text="Smooth turns (Chaikin Curve)" />
+
     <LinearLayout
         android:id="@+id/elevation_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@id/speeds_container"
+        android:layout_below="@id/smooth_turns_checkbox"
         android:layout_marginStart="10dp"
         android:layout_marginTop="20dp"
         android:orientation="vertical">

@@ -466,7 +466,7 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
             }
 
             @Override
-            public void onRouteBuilt(ArrayList<GeoPoint> points, double sourceLat, double sourceLong, double destLat, double destLong, double distance, ERouteTransport transport) {
+            public void onRouteBuilt(ArrayList<GeoPoint> points, ArrayList<Integer> speedLimits, double sourceLat, double sourceLong, double destLat, double destLong, double distance, ERouteTransport transport) {
                 mUserInterface.lockSearchBar(true);
                 mUserInterface.removeProgressLayout();
                 PrettyToast.show(mActivity, mActivity.getString(R.string.route_built), R.drawable.ic_route);
@@ -475,6 +475,9 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
                 mDistance += distancePoly;
                 MultipleRoutesInfo multipleRoutesInfo = new MultipleRoutesInfo();
                 multipleRoutesInfo.setRoute(points);
+                if (speedLimits != null) {
+                    multipleRoutesInfo.setSpeedLimits(speedLimits);
+                }
                 multipleRoutesInfo.setDistance(distancePoly);
                 multipleRoutesInfo.setTransport(transport);
 
@@ -527,7 +530,7 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
             @Override
             public void onRouteError(ArrayList<GeoPoint> points, double sourceLat, double sourceLong, double destLat, double destLong, double distance, ERouteTransport transport) {
                 PrettyToast.show(mActivity, mActivity.getString(R.string.failed_to_build_route), R.drawable.ic_route);
-                onRouteBuilt(points, sourceLat, sourceLong, destLat, destLong, distance, transport);
+                onRouteBuilt(points, null, sourceLat, sourceLong, destLat, destLong, distance, transport);
             }
 
             @Override

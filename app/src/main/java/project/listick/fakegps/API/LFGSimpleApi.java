@@ -148,6 +148,7 @@ public class LFGSimpleApi {
             public int code;
 
             public ArrayList<GeoPoint> result;
+            public ArrayList<Integer> speedLimits;
             public double distance;
         }
 
@@ -164,84 +165,68 @@ public class LFGSimpleApi {
             this.captchaResult = captchaResult;
         }
 
-        private String getRouteBuilderUrl(String orsApiKey) {
-            if (orsApiKey != null && !orsApiKey.trim().isEmpty()) {
-                // Return ORS endpoint if key is provided
-                String profilePath;
-                switch (transport) {
-                    case ROUTE_WALK:
-                        profilePath = "foot-walking";
-                        break;
-                    case ROUTE_BIKE:
-                        profilePath = "cycling-regular";
-                        break;
-                    case ROUTE_CAR:
-                    default:
-                        profilePath = "driving-car";
-                        break;
-                }
-                return "https://api.openrouteservice.org/v2/directions/" + profilePath + "/geojson";
-            } else {
-                // Fallback to OSM free routing
-                String baseUrl;
-                String profilePath;
-                switch (transport) {
-                    case ROUTE_WALK:
-                        baseUrl = "https://routing.openstreetmap.de/routed-foot/route/v1/";
-                        profilePath = "driving/";
-                        break;
-                    case ROUTE_BIKE:
-                        baseUrl = "https://routing.openstreetmap.de/routed-bike/route/v1/";
-                        profilePath = "driving/";
-                        break;
-                    case ROUTE_CAR:
-                    default:
-                        baseUrl = "https://routing.openstreetmap.de/routed-car/route/v1/";
-                        profilePath = "driving/";
-                        break;
-                }
-                return baseUrl + profilePath + sourcelong + "," + sourcelat + ";" + destlong + "," + destlat + "?overview=full&geometries=polyline";
+        private String getRouteBuilderUrl() {
+            String profilePath;
+            switch (transport) {
+                case ROUTE_WALK:
+                    profilePath = "foot-walking";
+                    break;
+                case ROUTE_BIKE:
+                    profilePath = "cycling-regular";
+                    break;
+                case ROUTE_CAR:
+                default:
+                    profilePath = "driving-car";
+                    break;
             }
+            return "https://api.openrouteservice.org/v2/directions/" + profilePath + "/geojson";
         }
 
         public void downloadRoute(android.content.Context context, DirectionsCallback callback) {
             DirectionsResponse response = new DirectionsResponse();
 
             String orsApiKey = project.listick.fakegps.AppPreferences.getOpenRouteServiceApiKey(context);
+            if (orsApiKey == null || orsApiKey.trim().isEmpty()) {
+                response.code = CODE_UNKNOWN_ERROR;
+                response.error = "Please enter an OpenRouteService API Key in the App Settings.";
+                callback.onResult(response);
+                return;
+            }
+
             Request request;
 
-            if (orsApiKey != null && !orsApiKey.trim().isEmpty()) {
-                // Create POST request for OpenRouteService
-                Map<String, Object[]> coordinates = new HashMap<>();
-                coordinates.put("coordinates", new Object[]{
-                        new Object[]{sourcelong, sourcelat},
-                        new Object[]{destlong, destlat},
-                });
+            // Create POST request for OpenRouteService
+            Map<String, Object[]> coordinates = new HashMap<>();
+            coordinates.put("coordinates", new Object[]{
+                    new Object[]{sourcelong, sourcelat},
+                    new Object[]{destlong, destlat},
+            });
 
-                JSONObject data = new JSONObject(coordinates);
-                try {
-                    data.put("elevation", String.valueOf(true));
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                }
+            JSONObject data = new JSONObject(coordinates);
+            try {
+                data.put("elevation", "true");
 
-                MediaType JSON = MediaType.parse("application/json; charset=utf-8");
-                RequestBody body = RequestBody.create(data.toString(), JSON);
+                // Add extra_info to retrieve speed limits for roads
+                JSONArray extraInfo = new JSONArray();
+                extraInfo.put("waytypes");
+                extraInfo.put("steepness");
+                extraInfo.put("speedlimit");
+                data.put("extra_info", extraInfo);
 
-                request = new Request.Builder()
-                        .url(getRouteBuilderUrl(orsApiKey))
-                        .addHeader("Authorization", orsApiKey)
-                        .addHeader("Content-Type", "application/json; charset=utf-8")
-                        .addHeader("Accept", "application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8")
-                        .post(body)
-                        .build();
-            } else {
-                // Create GET request for OSM fallback
-                request = new Request.Builder()
-                        .url(getRouteBuilderUrl(null))
-                        .get()
-                        .build();
+            } catch (JSONException e) {
+                e.printStackTrace();
             }
+
+            MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+            RequestBody body = RequestBody.create(data.toString(), JSON);
+
+            request = new Request.Builder()
+                    .url(getRouteBuilderUrl())
+                    .addHeader("Authorization", orsApiKey)
+                    .addHeader("Content-Type", "application/json; charset=utf-8")
+                    .addHeader("Accept", "application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8")
+                    .post(body)
+                    .build();
 
             WebClient.getInstance().makeRequest(request, new Callback() {
                 @Override
@@ -286,6 +271,30 @@ public class LFGSimpleApi {
                             }
                             response.result = points;
                             response.distance = distance = routes.getJSONObject("properties").getJSONObject("summary").getDouble("distance");
+
+                            // Extract speed limits if requested and available
+                            response.speedLimits = new ArrayList<>();
+                            if (routes.getJSONObject("properties").has("extras") && routes.getJSONObject("properties").getJSONObject("extras").has("speedlimit")) {
+                                JSONArray speedLimitsArr = routes.getJSONObject("properties").getJSONObject("extras").getJSONObject("speedlimit").getJSONArray("values");
+                                int currentSpeedLimitIdx = 0;
+                                int currentSpeed = 50; // default
+                                for (int i = 0; i < coordinates.length(); i++) {
+                                    if (currentSpeedLimitIdx < speedLimitsArr.length()) {
+                                        JSONArray segment = speedLimitsArr.getJSONArray(currentSpeedLimitIdx);
+                                        int endIdx = segment.getInt(1);
+                                        if (i >= endIdx) {
+                                            currentSpeedLimitIdx++;
+                                            if (currentSpeedLimitIdx < speedLimitsArr.length()) {
+                                                segment = speedLimitsArr.getJSONArray(currentSpeedLimitIdx);
+                                                currentSpeed = segment.getInt(2);
+                                            }
+                                        } else {
+                                            currentSpeed = segment.getInt(2);
+                                        }
+                                    }
+                                    response.speedLimits.add(currentSpeed);
+                                }
+                            }
                         } else { // OSRM
                             String encodedString = routes.getString("geometry");
                             // OSRM returns 2D polylines (lat/lng), not 3D (no elevation).

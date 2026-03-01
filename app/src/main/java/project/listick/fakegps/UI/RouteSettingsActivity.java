@@ -17,6 +17,7 @@ import androidx.fragment.app.FragmentActivity;
 
 import com.facebook.shimmer.ShimmerFrameLayout;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.checkbox.MaterialCheckBox;
 
 import project.listick.fakegps.AppPreferences;
 import project.listick.fakegps.Contract.RouteSettingsImpl;
@@ -40,6 +41,8 @@ public class RouteSettingsActivity extends FragmentActivity implements RouteSett
     private MaterialButton mContinue;
 
     private CheckBox mClosedRoute;
+    private MaterialCheckBox mFollowSpeedLimit;
+    private MaterialCheckBox mSmoothTurns;
 
     private View mPauseAtStartingContainer;
     private View mLatestPointDelayContainer;
@@ -92,6 +95,8 @@ public class RouteSettingsActivity extends FragmentActivity implements RouteSett
         elevation = findViewById(R.id.elevation);
         elevationDiff = findViewById(R.id.elevation_different);
         mClosedRoute = findViewById(R.id.closed_route);
+        mFollowSpeedLimit = findViewById(R.id.follow_speed_limit_checkbox);
+        mSmoothTurns = findViewById(R.id.smooth_turns_checkbox);
         mDetectingAltitude = findViewById(R.id.detecting_altitude);
 
         mLatestPointDelayContainer = findViewById(R.id.delay_at_the_last_point);
@@ -108,6 +113,11 @@ public class RouteSettingsActivity extends FragmentActivity implements RouteSett
         String unitName = AppPreferences.getUnitName(this, AppPreferences.getStandartUnit(this));
         speedUnit.setText(unitName);
         speedDiffUnit.setText(unitName);
+
+        mFollowSpeedLimit.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            speedField.setEnabled(!isChecked);
+            differenceField.setEnabled(!isChecked);
+        });
 
         mPresenter = new RouteSettingsPresenter(this);
 
@@ -141,7 +151,21 @@ public class RouteSettingsActivity extends FragmentActivity implements RouteSett
                             return;
                         }
                     }
-                    mPresenter.onContinueClick(Integer.parseInt(speedField.getText().toString()), Integer.parseInt(differenceField.getText().toString()), elevation, elevationDiff, mClosedRoute.isChecked());
+                    int currentSpeed = mFollowSpeedLimit.isChecked() ? 50 : Integer.parseInt(speedField.getText().toString());
+                    int currentDiff = mFollowSpeedLimit.isChecked() ? 0 : Integer.parseInt(differenceField.getText().toString());
+                    mPresenter.onContinueClick(currentSpeed, currentDiff, elevation, elevationDiff, mClosedRoute.isChecked(), mFollowSpeedLimit.isChecked(), mSmoothTurns.isChecked());
+                } else if (mFollowSpeedLimit.isChecked()) {
+                    // if speed limits checked, speed field might be empty and disabled.
+                    String elevationStr = RouteSettingsActivity.this.elevation.getText().toString();
+                    String elevationDiffStr = RouteSettingsActivity.this.elevationDiff.getText().toString();
+
+                    float elevation = 0;
+                    float elevationDiff = 0;
+
+                    if (!elevationStr.isEmpty()) elevation = Float.parseFloat(elevationStr);
+                    if (!elevationDiffStr.isEmpty()) elevationDiff = Float.parseFloat(elevationDiffStr);
+
+                    mPresenter.onContinueClick(50, 0, elevation, elevationDiff, mClosedRoute.isChecked(), true, mSmoothTurns.isChecked());
                 }
 
                 mPresenter.saveElevation(Float.parseFloat(elevation.getText().toString()), Float.parseFloat(elevationDiff.getText().toString()));
@@ -279,6 +303,11 @@ public class RouteSettingsActivity extends FragmentActivity implements RouteSett
     @Override
     public int getDestTimerSeconds() {
         return mDestTimerSeconds;
+    }
+
+    @Override
+    public boolean getFollowSpeedLimits() {
+        return mFollowSpeedLimit.isChecked();
     }
 
 

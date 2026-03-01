@@ -9,7 +9,7 @@ public interface RouteSettingsImpl {
         void onActivityLoad();
         void onChallengePassed(String challengeResult);
         void onCancelClick();
-        void onContinueClick(int speed, int difference, float elevation, float elevationDiff, boolean isClosedRoute);
+        void onContinueClick(int speed, int difference, float elevation, float elevationDiff, boolean isClosedRoute, boolean followSpeedLimits, boolean smoothTurns);
     }
 
     interface UI {
@@ -26,5 +26,6 @@ public interface RouteSettingsImpl {
         int getOriginTimerSeconds();
         int getDestTimerMinutes();
         int getDestTimerSeconds();
+        boolean getFollowSpeedLimits();
     }
 }

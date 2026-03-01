@@ -80,7 +80,9 @@ public class RouteSpooferService extends Service {
 
     private int mRouteSlice = 0;
     private ArrayList<GeoPoint>[] mSlices;
+    private ArrayList<Integer>[] mSlicesSpeeds;
     private ArrayList<GeoPoint> mSpoofRoute = new ArrayList<GeoPoint>();
+    private ArrayList<Integer> mSpoofRouteSpeeds = new ArrayList<>();
     private ArrayList<MultipleRoutesInfo> mRoutes = new ArrayList<>();
 
     private static class SourceData {
@@ -219,21 +221,34 @@ public class RouteSpooferService extends Service {
 
         try {
             mSlices = new ArrayList[mRoutes.size()];
+            mSlicesSpeeds = new ArrayList[mRoutes.size()];
             mRouteSlice = 0;
 
             for (int i = 0; i < mRoutes.size(); i++) {
                 mSlices[i] = new ArrayList<>();
-                List<GeoPoint> points = mRoutes.get(i).getRoute();
-                RouteManager.startMotion(points, mSlices[i]);
+                MultipleRoutesInfo routeInfo = mRoutes.get(i);
+                List<GeoPoint> points = routeInfo.getRoute();
+
+                if (routeInfo.getFollowSpeedLimits() && routeInfo.getSpeedLimits() != null) {
+                    mSlicesSpeeds[i] = new ArrayList<>();
+                    RouteManager.startMotion(points, routeInfo.getSpeedLimits(), mSlices[i], mSlicesSpeeds[i], routeInfo.getSmoothTurns());
+                } else {
+                    RouteManager.startMotion(points, null, mSlices[i], null, routeInfo.getSmoothTurns());
+                }
+
                 if (isClosedRoute) {
                     isClosedRoute = false;
                     Collections.reverse(mSlices[i]);
+                    if (mSlicesSpeeds[i] != null) {
+                        Collections.reverse(mSlicesSpeeds[i]);
+                    }
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
         mSpoofRoute = mSlices[mRouteSlice];
+        mSpoofRouteSpeeds = mSlicesSpeeds != null && mSlicesSpeeds.length > mRouteSlice ? mSlicesSpeeds[mRouteSlice] : null;
     }
 
     @Override
@@ -262,14 +277,23 @@ public class RouteSpooferService extends Service {
 
         @Override
         public void run() {
-            float rSpeed = mRandomizer.getRandomSpeed(mSpeed, mSpeedDiff);
+            if (mSpoofRoute == null || mSpoofRoute.isEmpty())
+                return;
+
+            float rSpeed;
+            if (mSpoofRouteSpeeds != null && arrayRunIndex >= 0 && arrayRunIndex < mSpoofRouteSpeeds.size()) {
+                rSpeed = mSpoofRouteSpeeds.get(arrayRunIndex);
+            } else {
+                rSpeed = mRandomizer.getRandomSpeed(mSpeed, mSpeedDiff);
+                if (mSpeedDiff != 0)
+                    rSpeed += Math.random() * mSpeedDiff;
+            }
+
             float rElevation = (float) mCurrentStep.getAltitude();
             float rAccuracy = mRandomizer.getAccuracy(mAccuracy);
             if (isNeedBrake) rSpeed = brakeSpeed;
 
             arrayRunSpeed = mRandomizer.getArrayRunSpeed((int) rSpeed, mUpdatesDelay);
-            if (mSpoofRoute == null || mSpoofRoute.isEmpty())
-                return;
 
             if (!isPaused && !waitingStart) arrayRunIndex += arrayRunSpeed;
             if (arrayRunIndex >= mSpoofRoute.size() - 1) {
@@ -280,10 +304,6 @@ public class RouteSpooferService extends Service {
                     return;
                 }
             }
-
-            if (mSpeedDiff != 0)
-                rSpeed += Math.random() * mSpeedDiff;
-                //rSpeed += ThreadLocalRandom.current().nextDouble(0, mSpeedDiff);
 
             FakeRouteInfo info = onMockArrived(rSpeed, rAccuracy);
             rSpeed = info.speed;
@@ -337,7 +357,9 @@ public class RouteSpooferService extends Service {
         }
 
         public void replaceRouteSlice() {
-            mSpoofRoute = mSlices[++mRouteSlice];
+            mRouteSlice++;
+            mSpoofRoute = mSlices[mRouteSlice];
+            mSpoofRouteSpeeds = mSlicesSpeeds != null && mSlicesSpeeds.length > mRouteSlice ? mSlicesSpeeds[mRouteSlice] : null;
 
             MultipleRoutesInfo routeInfo = mRoutes.get(mRouteSlice);
             mSpeed = routeInfo.getSpeed();
