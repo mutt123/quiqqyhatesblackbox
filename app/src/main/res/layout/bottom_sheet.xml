@@ -23,66 +23,128 @@
             style="@style/uisearchview"
             android:layout_centerHorizontal="true"/>
 
-        <com.facebook.shimmer.ShimmerFrameLayout
-            android:id="@+id/address_shimmer"
+        <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/mode_toggle_group"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:layout_below="@id/drag"
+            android:layout_marginBottom="8dp"
+            app:singleSelection="true"
+            app:checkedButton="@+id/btn_manual_mode">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_manual_mode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Manual"
+                style="?attr/materialButtonOutlinedStyle"
+                android:textColor="@color/toggle_text_color"
+                app:backgroundTint="@color/toggle_bg_color"
+                app:strokeColor="#00FF00" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_realtime_mode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Realtime"
+                style="?attr/materialButtonOutlinedStyle"
+                android:textColor="@color/toggle_text_color"
+                app:backgroundTint="@color/toggle_bg_color"
+                app:strokeColor="#00FF00" />
+        </com.google.android.material.button.MaterialButtonToggleGroup>
+
+        <LinearLayout
+            android:id="@+id/manual_mode_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="38dp"
-            android:layout_marginEnd="38dp"
-            android:layout_below="@id/drag">
+            android:orientation="vertical"
+            android:layout_below="@id/mode_toggle_group">
 
-            <TextView
-                android:id="@+id/firstAddress"
+            <com.facebook.shimmer.ShimmerFrameLayout
+                android:id="@+id/address_shimmer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="38dp"
+                android:layout_marginEnd="38dp"
+                app:shimmer_auto_start="false"
+                app:shimmer_direction="left_to_right"
+                app:shimmer_duration="1500"
+                app:shimmer_highlight_alpha="0.2">
+
+                <TextView
+                    android:id="@+id/firstAddress"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:lines="1"
+                    android:text="@string/from"
+                    android:textColor="@color/uicolor_text_medium"
+                    android:textSize="12sp" />
+            </com.facebook.shimmer.ShimmerFrameLayout>
+
+            <TextView
+                android:id="@+id/where_to"
+                style="@style/uisearchview"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:layout_marginStart="18dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginEnd="18dp"
+                android:layout_marginBottom="8dp"
+                android:drawableStart="@drawable/ic_route"
+                android:gravity="center_vertical"
                 android:lines="1"
-                android:text="@string/from"
-                android:textColor="@color/uicolor_text_medium"
-                android:textSize="12sp" />
-        </com.facebook.shimmer.ShimmerFrameLayout>
+                android:padding="8dp"
+                android:paddingStart="8dp"
+                android:text="@string/where_to"
+                android:textColor="@color/uicolor_text_high"
+                android:textSize="18sp" />
 
-        <TextView
-            android:id="@+id/where_to"
-            style="@style/uisearchview"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/address_shimmer"
-            android:layout_centerVertical="true"
-            android:layout_marginStart="18dp"
-            android:layout_marginTop="8dp"
-            android:layout_marginEnd="18dp"
-            android:layout_marginBottom="8dp"
-            android:drawableStart="@drawable/ic_route"
-            android:gravity="center_vertical"
-            android:lines="1"
-            android:padding="8dp"
-            android:paddingStart="8dp"
-            android:text="@string/where_to"
-            android:textColor="@color/uicolor_text_high"
-            android:textSize="18sp" />
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/add_more_points"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="18dp"
+                android:layout_marginEnd="18dp"
+                android:visibility="gone"
+                android:backgroundTint="@color/cardview_infobar"
+                style="@style/Widget.Material3.Button.TonalButton"
+                app:icon="@drawable/ic_baseline_add_location_alt_24"
+                app:iconGravity="textStart"
+                android:textColor="@color/uicolor"
+                android:text="@string/add_more_route"/>
 
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/add_more_points"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/where_to"
-            android:layout_marginStart="18dp"
-            android:layout_marginEnd="18dp"
-            android:visibility="gone"
-            android:backgroundTint="@color/cardview_infobar"
-            style="@style/Widget.Material3.Button.TonalButton"
-            app:icon="@drawable/ic_baseline_add_location_alt_24"
-            app:iconGravity="textStart"
-            android:textColor="@color/uicolor"
-            android:text="@string/add_more_route"/>
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/start_spoofing"
+                    style="@style/Widget.Material3.Button.Icon"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_marginStart="4dp"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginEnd="18dp"
+                    android:layout_marginBottom="8dp"
+                    android:backgroundTint="@color/start_spoofing"
+                    android:gravity="center"
+                    android:lines="1"
+                    android:text="@string/start_spoofing"
+                    android:visibility="visible"
+                    app:icon="@drawable/ic_done"
+                    app:iconGravity="textStart" />
+            </RelativeLayout>
+        </LinearLayout>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/please_enable_location_services"
             style="@style/Widget.Material3.Button.TonalButton.Icon"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_below="@id/add_more_points"
+            android:layout_below="@id/manual_mode_container"
             android:layout_marginStart="18dp"
             android:layout_marginTop="8dp"
             android:layout_marginEnd="18dp"
@@ -94,24 +156,57 @@
             app:icon="@drawable/ic_location_warning"
             app:iconGravity="textStart" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/start_spoofing"
-            style="@style/Widget.Material3.Button.Icon"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:id="@+id/realtime_mode_container"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_below="@id/please_enable_location_services"
-            android:layout_alignParentEnd="true"
-            android:layout_marginStart="4dp"
-            android:layout_marginTop="8dp"
-            android:layout_marginEnd="18dp"
-            android:layout_marginBottom="8dp"
-            android:backgroundTint="@color/start_spoofing"
-            android:gravity="center"
-            android:lines="1"
-            android:text="@string/start_spoofing"
-            android:visibility="visible"
-            app:icon="@drawable/ic_done"
-            app:iconGravity="textStart" />
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/start_realtime"
+                style="@style/Widget.Material3.Button.Icon"
+                android:layout_width="match_parent"
+                android:layout_height="64dp"
+                android:layout_marginStart="18dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginEnd="18dp"
+                android:layout_marginBottom="8dp"
+                android:backgroundTint="#4CAF50"
+                android:gravity="center"
+                android:lines="1"
+                android:text="Start Realtime Smoothing"
+                android:textSize="18sp"
+                app:icon="@drawable/ic_done"
+                app:iconGravity="textStart" />
+
+            <LinearLayout
+                android:id="@+id/realtime_options"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="18dp"
+                android:layout_marginEnd="18dp"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_vertical"
+                    android:text="Buffer Delay (sec):"
+                    android:textColor="@color/uicolor_text_high" />
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/realtime_buffer_input"
+                    android:layout_width="80dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:inputType="number"
+                    android:text="10"
+                    android:textColor="@color/uicolor_text_high" />
+
+            </LinearLayout>
+        </LinearLayout>
 
 
         <com.google.android.material.button.MaterialButton

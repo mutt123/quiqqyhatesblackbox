@@ -351,6 +351,8 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
         } else if (MainServiceControl.isFixedSpoofingServiceRunning(mContext))
             mContext.stopService(new Intent(mContext, FixedSpooferService.class));
 
+        mContext.stopService(new Intent(mContext, project.listick.fakegps.Services.RealtimeSpooferService.class));
+
         for (Overlay overlay : mMap.getOverlays()) {
             if (!(overlay instanceof LocationMarker))
                 mMap.getOverlays().remove(overlay);

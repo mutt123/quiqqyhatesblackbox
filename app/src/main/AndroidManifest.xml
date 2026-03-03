@@ -85,6 +85,10 @@
             android:name=".Services.FixedSpooferService"
             android:enabled="true"
             android:process=":LocationSpoofer" />
+        <service
+            android:name=".Services.RealtimeSpooferService"
+            android:enabled="true"
+            android:process=":LocationSpoofer" />
 
         <activity
             android:name=".UI.SettingsActivity"
