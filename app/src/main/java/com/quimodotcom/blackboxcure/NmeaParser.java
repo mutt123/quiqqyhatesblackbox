@@ -1,4 +1,4 @@
-package project.listick.fakegps;
+package com.quimodotcom.blackboxcure;
 
 import android.location.Location;
 import android.location.LocationManager;

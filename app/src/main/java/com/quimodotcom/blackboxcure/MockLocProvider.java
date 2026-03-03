@@ -146,8 +146,25 @@ public class MockLocProvider {
     public static void removeProviders() {
         if (isMockLocationsEnabled) {
             try {
-                locationManager.removeTestProvider(GPS_PROVIDER);
-                locationManager.removeTestProvider(NETWORK_PROVIDER);
+                if (locationManager.getProvider(GPS_PROVIDER) != null) {
+                    try {
+                        locationManager.clearTestProviderEnabled(GPS_PROVIDER);
+                    } catch (Exception ignored) {}
+                    try {
+                        locationManager.clearTestProviderLocation(GPS_PROVIDER);
+                    } catch (Exception ignored) {}
+                    locationManager.removeTestProvider(GPS_PROVIDER);
+                }
+
+                if (locationManager.getProvider(NETWORK_PROVIDER) != null) {
+                    try {
+                        locationManager.clearTestProviderEnabled(NETWORK_PROVIDER);
+                    } catch (Exception ignored) {}
+                    try {
+                        locationManager.clearTestProviderLocation(NETWORK_PROVIDER);
+                    } catch (Exception ignored) {}
+                    locationManager.removeTestProvider(NETWORK_PROVIDER);
+                }
             } catch (IllegalArgumentException | SecurityException e) {
                 android.util.Log.d(com.quimodotcom.blackboxcure.BuildConfig.APPLICATION_ID, null, e);
             }

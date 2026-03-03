@@ -32,6 +32,10 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.navigation.NavigationView;
+import com.google.android.material.button.MaterialButtonToggleGroup;
+import com.google.android.material.textfield.TextInputEditText;
+import android.content.SharedPreferences;
+import androidx.preference.PreferenceManager;
 
 import org.osmdroid.api.IGeoPoint;
 import org.osmdroid.events.DelayedMapListener;
@@ -53,6 +57,7 @@ import com.quimodotcom.blackboxcure.PermissionManager;
 import com.quimodotcom.blackboxcure.Presenter.MapsPresenter;
 import com.quimodotcom.blackboxcure.Presenter.RouteSettingsPresenter;
 import com.quimodotcom.blackboxcure.R;
+import com.quimodotcom.blackboxcure.Services.RealtimeSpooferService;
 import com.quimodotcom.blackboxcure.Services.RouteSpooferService;
 
 /*
@@ -70,6 +75,11 @@ public class MapsActivity extends Edge2EdgeActivity implements MapsImpl.UIImpl, 
     private TextView mSearchLayout;
     private MaterialButton mStopContainer;
     private CardView mActiveRouteLayout;
+    private MaterialButtonToggleGroup mModeToggleGroup;
+    private MaterialButton mStartRealtime;
+    private LinearLayout mRealtimeOptions;
+    private TextInputEditText mRealtimeBufferInput;
+    private boolean isRealtimeMode = false;
     private MaterialButton mPauseContainer;
     private MaterialButton mEditContainer;
     private MaterialButton mDoneContainer;
@@ -106,6 +116,10 @@ public class MapsActivity extends Edge2EdgeActivity implements MapsImpl.UIImpl, 
         mStopContainer = findViewById(R.id.stop_button);
         mPauseContainer = findViewById(R.id.pause_button);
         mSpeedInfo = findViewById(R.id.speedometer);
+        mStartRealtime = findViewById(R.id.start_realtime);
+        mRealtimeOptions = findViewById(R.id.realtime_options);
+        mRealtimeBufferInput = findViewById(R.id.realtime_buffer_input);
+        mModeToggleGroup = findViewById(R.id.mode_toggle_group);
         mDistanceInfo = findViewById(R.id.distance_info);
         mDoneContainer = findViewById(R.id.start_spoofing);
         mEditContainer = findViewById(R.id.edit_button);
@@ -200,6 +214,48 @@ public class MapsActivity extends Edge2EdgeActivity implements MapsImpl.UIImpl, 
         mRestoreLocation.setOnClickListener(v -> mPresenter.handleClear());
 
         getLocation.setOnClickListener(v -> mPresenter.onCurrentLocationClick());
+
+        mStartRealtime.setOnClickListener(v -> {
+            mPresenter.handleStop(); // Stop any regular routing/fixed services first
+
+            int buffer = 10;
+            try { buffer = Integer.parseInt(mRealtimeBufferInput.getText().toString()); } catch (Exception ignored) {}
+
+            Intent serviceIntent = new Intent(this, RealtimeSpooferService.class);
+            serviceIntent.putExtra(RealtimeSpooferService.KEY_BUFFER_DELAY, buffer);
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent);
+            } else {
+                startService(serviceIntent);
+            }
+
+            mStartRealtime.setVisibility(View.GONE);
+            mRealtimeOptions.setVisibility(View.GONE);
+            mStopContainer.setVisibility(View.VISIBLE);
+        });
+
+        mModeToggleGroup.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
+            if (!isChecked) return; // Ignore uncheck events
+
+            isRealtimeMode = (checkedId == R.id.btn_realtime_mode);
+            View manualModeContainer = findViewById(R.id.manual_mode_container);
+            View realtimeModeContainer = findViewById(R.id.realtime_mode_container);
+
+            if (isRealtimeMode) {
+                if (manualModeContainer != null) manualModeContainer.setVisibility(View.GONE);
+                if (realtimeModeContainer != null) realtimeModeContainer.setVisibility(View.VISIBLE);
+                mSearchLayout.setVisibility(View.GONE); // Ensure where_to text is completely hidden
+                mAddMoreRoute.setVisibility(View.GONE);
+                mDoneContainer.setVisibility(View.GONE); // regular start_spoofing button
+
+                mBottomSheet.setState(BottomSheetBehavior.STATE_EXPANDED);
+            } else {
+                if (manualModeContainer != null) manualModeContainer.setVisibility(View.VISIBLE);
+                if (realtimeModeContainer != null) realtimeModeContainer.setVisibility(View.GONE);
+                mSearchLayout.setVisibility(View.VISIBLE);
+                mDoneContainer.setVisibility(View.VISIBLE);
+            }
+        });
 
         lockSearchBar(false);
 
@@ -312,7 +368,11 @@ public class MapsActivity extends Edge2EdgeActivity implements MapsImpl.UIImpl, 
 
     @Override
     public void startSpoofingVisibility(int visibility) {
-        mDoneContainer.setVisibility(visibility);
+        if (!isRealtimeMode) {
+            mDoneContainer.setVisibility(visibility);
+        } else {
+            mDoneContainer.setVisibility(View.GONE);
+        }
     }
 
     @Override
@@ -323,12 +383,19 @@ public class MapsActivity extends Edge2EdgeActivity implements MapsImpl.UIImpl, 
 
     @Override
     public void enablePause(int visibility) {
-        mPauseContainer.setVisibility(visibility);
+        if (!isRealtimeMode) {
+            mPauseContainer.setVisibility(visibility);
+        }
     }
 
     @Override
     public void enableStop(int visibility) {
         mStopContainer.setVisibility(visibility);
+
+        if (visibility == View.GONE && isRealtimeMode) {
+            mStartRealtime.setVisibility(View.VISIBLE);
+            mRealtimeOptions.setVisibility(View.VISIBLE);
+        }
     }
 
     @Override
@@ -438,6 +505,11 @@ public class MapsActivity extends Edge2EdgeActivity implements MapsImpl.UIImpl, 
     @Override
     public void setAddressShimmer(boolean enable) {
         ShimmerFrameLayout addressShimmer = findViewById(R.id.address_shimmer);
+        if (isRealtimeMode) {
+            if (addressShimmer != null) addressShimmer.setVisibility(View.GONE);
+            return;
+        }
+        if (addressShimmer != null) addressShimmer.setVisibility(View.VISIBLE);
         if (enable) {
             addressShimmer.showShimmer(true);
         } else {
@@ -448,7 +520,11 @@ public class MapsActivity extends Edge2EdgeActivity implements MapsImpl.UIImpl, 
 
     @Override
     public void setAddMoreRoute(int visibilty) {
-        mAddMoreRoute.setVisibility(visibilty);
+        if (!isRealtimeMode) {
+            mAddMoreRoute.setVisibility(visibilty);
+        } else {
+            mAddMoreRoute.setVisibility(View.GONE);
+        }
         mMap.requestApplyInsets();
     }
 
@@ -474,6 +550,11 @@ public class MapsActivity extends Edge2EdgeActivity implements MapsImpl.UIImpl, 
 
     @Override
     public void lockSearchBar(boolean isLocked) {
+        if (isRealtimeMode) {
+            mSearchLayout.setVisibility(View.GONE);
+            return;
+        }
+        mSearchLayout.setVisibility(View.VISIBLE);
 
         final View.OnClickListener searchLayoutClickListener;
 

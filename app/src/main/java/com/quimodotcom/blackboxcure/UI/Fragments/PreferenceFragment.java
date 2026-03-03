@@ -28,7 +28,7 @@ public class PreferenceFragment extends PreferenceFragmentCompat {
             accuracySettingsPref.setSummary(AppPreferences.getAccuracy(requireContext()) + " m.");
             accuracySettingsPref.setDialogMessage(R.string.enter_accuracy_value);
             accuracySettingsPref.setOnBindEditTextListener(editText -> {
-                editText.setInputType(InputType.TYPE_CLASS_NUMBER);
+                editText.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
                 editText.setKeyListener(DigitsKeyListener.getInstance("0123456789.,"));
                 editText.addTextChangedListener(getCommaReplacerTextWatcher(editText));
             });
@@ -53,7 +53,7 @@ public class PreferenceFragment extends PreferenceFragmentCompat {
 
             updatesDelayPref.setDialogMessage(R.string.enter_updates_time_value);
             updatesDelayPref.setOnBindEditTextListener(editText -> {
-                editText.setInputType(InputType.TYPE_CLASS_NUMBER);
+                editText.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
                 editText.setKeyListener(DigitsKeyListener.getInstance("0123456789.,"));
                 editText.addTextChangedListener(getCommaReplacerTextWatcher(editText));
             });

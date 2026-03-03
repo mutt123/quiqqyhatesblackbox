@@ -1,4 +1,4 @@
-package project.listick.fakegps.Services;
+package com.quimodotcom.blackboxcure.Services;
 
 import android.app.Service;
 import android.content.Context;
@@ -9,11 +9,11 @@ import android.os.IBinder;
 
 import androidx.annotation.Nullable;
 
-import project.listick.fakegps.FusedLocationsProvider;
-import project.listick.fakegps.MainServiceControl;
-import project.listick.fakegps.MockLocProvider;
-import project.listick.fakegps.PermissionManager;
-import project.listick.fakegps.NmeaParser;
+import com.quimodotcom.blackboxcure.FusedLocationsProvider;
+import com.quimodotcom.blackboxcure.MainServiceControl;
+import com.quimodotcom.blackboxcure.MockLocProvider;
+import com.quimodotcom.blackboxcure.PermissionManager;
+import com.quimodotcom.blackboxcure.NmeaParser;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
@@ -129,7 +129,7 @@ public class RealtimeSpooferService extends Service {
             double angle = 180.0; // Straight line
             Location nextTarget = locationBuffer.peek();
             if (nextTarget != null) {
-                angle = project.listick.fakegps.Geometry.getAngle(
+                angle = com.quimodotcom.blackboxcure.Geometry.getAngle(
                     lastOutputLocation.getLatitude(), lastOutputLocation.getLongitude(),
                     currentTarget.getLatitude(), currentTarget.getLongitude(),
                     nextTarget.getLatitude(), nextTarget.getLongitude()
