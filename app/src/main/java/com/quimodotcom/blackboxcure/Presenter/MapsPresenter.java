@@ -377,6 +377,7 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
             handleStop();
             MockLocProvider.initTestProvider(); // re-init mock location provider for init LocationManager
             MockLocProvider.removeProviders();
+            onCurrentLocationClick(); // force map to jump back to real location
             dialogInterface.cancel();
         };
 

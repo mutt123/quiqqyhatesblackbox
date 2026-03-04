@@ -12,38 +12,6 @@
         android:layout_marginStart="0dp"
         android:layout_marginTop="0dp" />
 
-    <com.google.android.material.button.MaterialButtonToggleGroup
-        android:id="@+id/mode_toggle_group"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentTop="true"
-        android:layout_centerHorizontal="true"
-        android:layout_marginTop="50dp"
-        android:elevation="4dp"
-        app:checkedButton="@id/btn_manual_mode"
-        app:singleSelection="true"
-        xmlns:app="http://schemas.android.com/apk/res-auto">
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_manual_mode"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Manual"
-            android:textColor="@color/toggle_text_color"
-            app:backgroundTint="@color/toggle_bg_color" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btn_realtime_mode"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Realtime"
-            android:textColor="@color/toggle_text_color"
-            app:backgroundTint="@color/toggle_bg_color" />
-
-    </com.google.android.material.button.MaterialButtonToggleGroup>
-
     <RelativeLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

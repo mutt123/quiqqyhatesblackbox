@@ -75,7 +75,6 @@ public class MapsActivity extends Edge2EdgeActivity implements MapsImpl.UIImpl, 
     private TextView mSearchLayout;
     private MaterialButton mStopContainer;
     private CardView mActiveRouteLayout;
-    private MaterialButtonToggleGroup mModeToggleGroup;
     private MaterialButton mStartRealtime;
     private LinearLayout mRealtimeOptions;
     private TextInputEditText mRealtimeBufferInput;
@@ -119,7 +118,6 @@ public class MapsActivity extends Edge2EdgeActivity implements MapsImpl.UIImpl, 
         mStartRealtime = findViewById(R.id.start_realtime);
         mRealtimeOptions = findViewById(R.id.realtime_options);
         mRealtimeBufferInput = findViewById(R.id.realtime_buffer_input);
-        mModeToggleGroup = findViewById(R.id.mode_toggle_group);
         mDistanceInfo = findViewById(R.id.distance_info);
         mDoneContainer = findViewById(R.id.start_spoofing);
         mEditContainer = findViewById(R.id.edit_button);
@@ -232,29 +230,6 @@ public class MapsActivity extends Edge2EdgeActivity implements MapsImpl.UIImpl, 
             mStartRealtime.setVisibility(View.GONE);
             mRealtimeOptions.setVisibility(View.GONE);
             mStopContainer.setVisibility(View.VISIBLE);
-        });
-
-        mModeToggleGroup.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
-            if (!isChecked) return; // Ignore uncheck events
-
-            isRealtimeMode = (checkedId == R.id.btn_realtime_mode);
-            View manualModeContainer = findViewById(R.id.manual_mode_container);
-            View realtimeModeContainer = findViewById(R.id.realtime_mode_container);
-
-            if (isRealtimeMode) {
-                if (manualModeContainer != null) manualModeContainer.setVisibility(View.GONE);
-                if (realtimeModeContainer != null) realtimeModeContainer.setVisibility(View.VISIBLE);
-                mSearchLayout.setVisibility(View.GONE); // Ensure where_to text is completely hidden
-                mAddMoreRoute.setVisibility(View.GONE);
-                mDoneContainer.setVisibility(View.GONE); // regular start_spoofing button
-
-                mBottomSheet.setState(BottomSheetBehavior.STATE_EXPANDED);
-            } else {
-                if (manualModeContainer != null) manualModeContainer.setVisibility(View.VISIBLE);
-                if (realtimeModeContainer != null) realtimeModeContainer.setVisibility(View.GONE);
-                mSearchLayout.setVisibility(View.VISIBLE);
-                mDoneContainer.setVisibility(View.VISIBLE);
-            }
         });
 
         lockSearchBar(false);
