@@ -147,10 +147,10 @@ public class MockLocProvider {
         if (isMockLocationsEnabled) {
             try {
                 try {
-                    locationManager.clearTestProviderEnabled(GPS_PROVIDER);
+                    locationManager.clearTestProviderLocation(GPS_PROVIDER);
                 } catch (Exception ignored) {}
                 try {
-                    locationManager.clearTestProviderLocation(GPS_PROVIDER);
+                    locationManager.clearTestProviderEnabled(GPS_PROVIDER);
                 } catch (Exception ignored) {}
                 try {
                     locationManager.removeTestProvider(GPS_PROVIDER);
@@ -159,10 +159,10 @@ public class MockLocProvider {
                 }
 
                 try {
-                    locationManager.clearTestProviderEnabled(NETWORK_PROVIDER);
+                    locationManager.clearTestProviderLocation(NETWORK_PROVIDER);
                 } catch (Exception ignored) {}
                 try {
-                    locationManager.clearTestProviderLocation(NETWORK_PROVIDER);
+                    locationManager.clearTestProviderEnabled(NETWORK_PROVIDER);
                 } catch (Exception ignored) {}
                 try {
                     locationManager.removeTestProvider(NETWORK_PROVIDER);
