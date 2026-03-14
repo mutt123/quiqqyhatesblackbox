@@ -24,7 +24,7 @@ import com.quimodotcom.blackboxcure.WebClient;
 public class LFGSimpleApi {
 
     // OSRM public instance — foot profile only
-    private static final String OSRM_BASE_URL = "https://router.project-osrm.org/route/v1/foot/";
+    //private static final String OSRM_BASE_URL = "https://routing.openstreetmap.de/routed-foot/route/v1/foot/";
     // Open-Elevation public instance
     private static final String ELEVATION_URL = "https://api.open-elevation.com/api/v1/lookup";
 
@@ -99,6 +99,7 @@ public class LFGSimpleApi {
         private final double sourcelong;
         private final double destlat;
         private final double destlong;
+        private final ERouteTransport transport;
 
         private double distance;
 
@@ -125,8 +126,9 @@ public class LFGSimpleApi {
             this.sourcelong = sourcelong;
             this.destlat = destlat;
             this.destlong = destlong;
+            this.transport = transport;
         }
-
+        /*
         private String buildOsrmUrl() {
             // OSRM expects  lon,lat  order
             return OSRM_BASE_URL
@@ -135,6 +137,31 @@ public class LFGSimpleApi {
                     + destlong + "," + destlat
                     + "?overview=full&geometries=geojson";
         }
+        */
+
+        // NACHHER – transport richtig auswerten:
+        private String buildOsrmUrl() {
+            String baseUrl;
+            switch (transport) {
+                case ROUTE_BIKE:
+                    baseUrl = "https://routing.openstreetmap.de/routed-bike/route/v1/bike/";
+                    break;
+                case ROUTE_CAR:
+                    baseUrl = "https://routing.openstreetmap.de/routed-car/route/v1/driving/";
+                    break;
+                case ROUTE_WALK:
+                default:
+                    baseUrl = "https://routing.openstreetmap.de/routed-foot/route/v1/foot/";
+                    break;
+            }
+            return baseUrl
+                    + sourcelong + "," + sourcelat
+                    + ";"
+                    + destlong + "," + destlat
+                    + "?overview=full&geometries=geojson";
+        }
+
+
 
         /** context parameter accepted for call-site compatibility but not used. */
         public void downloadRoute(android.content.Context context, DirectionsCallback callback) {
