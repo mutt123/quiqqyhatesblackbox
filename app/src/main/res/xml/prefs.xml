@@ -19,14 +19,14 @@
             android:summary="@string/auto_altitude_summary"
             android:title="@string/auto_altitude_detection" />
     </PreferenceCategory>
-    <PreferenceCategory android:title="@string/routing_api_preferences_title">
+    <!--<PreferenceCategory android:title="@string/routing_api_preferences_title">
         <EditTextPreference
             android:key="openrouteservice_api_key"
             android:icon="@drawable/ic_route"
             android:title="@string/openrouteservice_api_key_title"
             android:summary="@string/openrouteservice_api_key_summary"
             android:dialogMessage="@string/openrouteservice_api_key_dialog"/>
-    </PreferenceCategory>
+    </PreferenceCategory> -->
 
     <PreferenceCategory android:title="@string/measurement_title">
 

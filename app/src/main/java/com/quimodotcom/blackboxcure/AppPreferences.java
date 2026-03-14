@@ -45,9 +45,9 @@ public class AppPreferences {
        return Integer.parseInt(PreferenceManager.getDefaultSharedPreferences(context).getString(MapLoader.DEFAULT_TILE_PROVIDER, String.valueOf(MapLoader.DEFAULT_TILES)));
     }
 
-    public static String getOpenRouteServiceApiKey(@NonNull Context context) {
+    /*public static String getOpenRouteServiceApiKey(@NonNull Context context) {
         return PreferenceManager.getDefaultSharedPreferences(context).getString("openrouteservice_api_key", "");
-    }
+    }*/
 
     public static int getAccuracy(Context context){
         return (int) Float.parseFloat(PreferenceManager.getDefaultSharedPreferences(context).getString(BlackBoxCureApp.ACCURACY_SETTINGS, "10"));

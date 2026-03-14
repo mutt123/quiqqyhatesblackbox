@@ -19,11 +19,11 @@ import android.os.Handler;
 import android.os.RemoteException;
 import android.provider.Settings;
 import android.text.Spanned;
-import android.util.DisplayMetrics;
+//import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.WindowManager;
+//import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.Toast;
 
@@ -38,9 +38,9 @@ import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Overlay;
 
 import java.io.IOException;
-import java.security.cert.CertificateException;
+//import java.security.cert.CertificateException;
 import java.util.ArrayList;
-import java.util.Arrays;
+//import java.util.Arrays;
 import java.util.List;
 
 import okhttp3.Call;
@@ -50,7 +50,7 @@ import okhttp3.Response;
 import com.quimodotcom.blackboxcure.AsyncGeocoder;
 import com.quimodotcom.blackboxcure.Contract.MapsImpl;
 import com.quimodotcom.blackboxcure.CurrentLocation;
-import com.quimodotcom.blackboxcure.DeviceUtils;
+//import com.quimodotcom.blackboxcure.DeviceUtils;
 import com.quimodotcom.blackboxcure.Enumerations.ERouteTransport;
 import com.quimodotcom.blackboxcure.FakeGPSApplication;
 import com.quimodotcom.blackboxcure.JoystickOverlay;
@@ -76,7 +76,7 @@ import com.quimodotcom.blackboxcure.Services.JoystickService;
 import com.quimodotcom.blackboxcure.Services.RouteSpooferService;
 import com.quimodotcom.blackboxcure.SpoofingPlaceInfo;
 import com.quimodotcom.blackboxcure.UI.BookmarksActivity;
-import com.quimodotcom.blackboxcure.UI.CaptchaActivity;
+//import com.quimodotcom.blackboxcure.UI.CaptchaActivity;
 import com.quimodotcom.blackboxcure.UI.EditTextDialog;
 import com.quimodotcom.blackboxcure.UI.JoystickActivity;
 import com.quimodotcom.blackboxcure.UI.MockLocationPermissionActivity;
@@ -84,7 +84,7 @@ import com.quimodotcom.blackboxcure.UI.PrettyToast;
 import com.quimodotcom.blackboxcure.UI.RouteSettingsActivity;
 import com.quimodotcom.blackboxcure.UI.SearchActivity;
 import com.quimodotcom.blackboxcure.UI.SettingsActivity;
-import com.quimodotcom.blackboxcure.UI.WrongTimeActivity;
+//import com.quimodotcom.blackboxcure.UI.WrongTimeActivity;
 import com.quimodotcom.blackboxcure.WebClient;
 
 /*
@@ -120,7 +120,7 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
         mUserInterface.setAddressShimmer(false);
 
         restoreRoute();
-        sendDeviceAnalytics();
+        //sendDeviceAnalytics();
 
         if (!PermissionManager.isPackageInstalled(BlackBoxCureApp.TELEGRAM_PACKAGE_NAME)) {
             mUserInterface.removeMenuItem(R.id.our_telegram);
@@ -131,7 +131,7 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
         }
     }
 
-    public void sendDeviceAnalytics() {
+    /*public void sendDeviceAnalytics() {
         JSONObject postData = new JSONObject();
         try {
             JSONObject deviceData = new JSONObject();
@@ -236,25 +236,25 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
                 response.close();}
         });
 
-    }
+    } */
 
-    public int getStatusBarHeight() {
+    /*public int getStatusBarHeight() {
         int result = 0;
         int resourceId = mContext.getResources().getIdentifier("status_bar_height", "dimen", "android");
         if (resourceId > 0) {
             result = mContext.getResources().getDimensionPixelSize(resourceId);
         }
         return result;
-    }
+    } */
 
-    public int getNavBarHeight() {
+    /*public int getNavBarHeight() {
         int navigationBarHeight = 0;
         int resourceId = mContext.getResources().getIdentifier("navigation_bar_height", "dimen", "android");
         if (resourceId > 0) {
             navigationBarHeight = mContext.getResources().getDimensionPixelSize(resourceId);
         }
         return navigationBarHeight;
-    }
+    }*/
 
 
     public MapsPresenter(MapView mMap, Context context) {
@@ -442,7 +442,7 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
 
     @Override
     public void onRoute(Intent data) {
-        String captchaResult = data.getStringExtra(CaptchaActivity.KEY_CAPTCHA_RESULT);
+        /*String captchaResult = data.getStringExtra(CaptchaActivity.KEY_CAPTCHA_RESULT);*/
 
         double sourceLat = data.getDoubleExtra(SpoofingPlaceInfo.ORIGIN_LAT, 0f);
         double sourceLong = data.getDoubleExtra(SpoofingPlaceInfo.ORIGIN_LNG, 0f);
@@ -453,7 +453,7 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
 
         ERouteTransport transport = (ERouteTransport) data.getSerializableExtra(SpoofingPlaceInfo.TRANSPORT);
 
-        RouteBuilder builder = new RouteBuilder(mActivity, sourceLat, sourceLong, destLat, destLong, transport, captchaResult);
+        RouteBuilder builder = new RouteBuilder(mActivity, sourceLat, sourceLong, destLat, destLong, transport, null);
         builder.build(new RouteBuilder.IRouteBuilder() {
             @Override
             public void prepare() {
@@ -539,8 +539,8 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
             @Override
             public void captchaResponse() {
                 mUserInterface.removeProgressLayout();
-                mActivity.startActivityForResult(new Intent(mActivity, CaptchaActivity.class)
-                        .putExtra(CaptchaActivity.KEY_DATA, data), SearchActivity.ACTIVITY_REQUEST_CODE);
+                /*mActivity.startActivityForResult(new Intent(mActivity, CaptchaActivity.class)
+                        .putExtra(CaptchaActivity.KEY_DATA, data), SearchActivity.ACTIVITY_REQUEST_CODE);*/
             }
         });
     }

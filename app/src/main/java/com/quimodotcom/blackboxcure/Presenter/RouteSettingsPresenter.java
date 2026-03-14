@@ -20,12 +20,10 @@ import com.quimodotcom.blackboxcure.Services.FixedSpooferService;
 import com.quimodotcom.blackboxcure.Services.ISpooferService;
 import com.quimodotcom.blackboxcure.Services.RouteSpooferService;
 import com.quimodotcom.blackboxcure.SpoofingPlaceInfo;
-import com.quimodotcom.blackboxcure.UI.CaptchaActivity;
+//import com.quimodotcom.blackboxcure.UI.CaptchaActivity;
 import com.quimodotcom.blackboxcure.UI.SettingsActivity;
 
-/*
- * Created by LittleAngry on 09.01.19 (macOS 10.12)
- * */
+
 public class RouteSettingsPresenter implements RouteSettingsImpl.Presenter {
 
     public static final String TAG = RouteSettingsPresenter.class.getName();
@@ -274,7 +272,7 @@ public class RouteSettingsPresenter implements RouteSettingsImpl.Presenter {
 
             @Override
             public void onCaptchaResult() {
-                mActivity.startActivityForResult(new Intent(mActivity, CaptchaActivity.class), CaptchaActivity.ACTIVITY_REQUEST_CODE);
+                /*mActivity.startActivityForResult(new Intent(mActivity, CaptchaActivity.class), CaptchaActivity.ACTIVITY_REQUEST_CODE);*/
             }
 
             @Override

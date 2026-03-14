@@ -1,8 +1,6 @@
 package com.quimodotcom.blackboxcure;
 
-import static com.quimodotcom.blackboxcure.API.LFGSimpleApi.CODE_BAD_RECAPTCHA_RESPONSE;
 import static com.quimodotcom.blackboxcure.API.LFGSimpleApi.CODE_CONNECTION_FAILED;
-import static com.quimodotcom.blackboxcure.API.LFGSimpleApi.CODE_RECAPTCHA_RESPONSE;
 import static com.quimodotcom.blackboxcure.API.LFGSimpleApi.CODE_SUCCESS;
 import static com.quimodotcom.blackboxcure.API.LFGSimpleApi.CODE_UNKNOWN_ERROR;
 
@@ -28,26 +26,32 @@ public class RouteBuilder {
     private final double destLng;
 
     private final ERouteTransport transport;
-
-    private final String captchaResult;
     private boolean canceled;
 
     public interface IRouteBuilder {
         void prepare();
-        void onRouteBuilt(ArrayList<GeoPoint> points, ArrayList<Integer> speedLimits, double sourceLat, double sourceLong, double destLat, double destLong, double distance, ERouteTransport transport);
-        void onRouteError(ArrayList<GeoPoint> points, double sourceLat, double sourceLong, double destLat, double destLong, double distance, ERouteTransport transport);
+        void onRouteBuilt(ArrayList<GeoPoint> points, ArrayList<Integer> speedLimits,
+                          double sourceLat, double sourceLong,
+                          double destLat, double destLong,
+                          double distance, ERouteTransport transport);
+        void onRouteError(ArrayList<GeoPoint> points,
+                          double sourceLat, double sourceLong,
+                          double destLat, double destLong,
+                          double distance, ERouteTransport transport);
+        // kept so existing call-sites compile; never invoked anymore
         void captchaResponse();
     }
 
-    public RouteBuilder(Activity activity, double originLat, double originLng, double destLat, double destLng, ERouteTransport transport, String captchaResult) {
+    public RouteBuilder(Activity activity,
+                        double originLat, double originLng,
+                        double destLat, double destLng,
+                        ERouteTransport transport,
+                        String ignoredCaptchaResult) {
         this.activity = activity;
-        this.captchaResult = captchaResult;
-
         this.originLat = originLat;
         this.originLng = originLng;
         this.destLat = destLat;
         this.destLng = destLng;
-
         this.transport = transport;
         this.canceled = false;
     }
@@ -55,34 +59,39 @@ public class RouteBuilder {
     public void build(IRouteBuilder listener) {
         listener.prepare();
 
-        LFGSimpleApi.Directions directionsApi = new LFGSimpleApi.Directions(originLat, originLng, destLat, destLng, transport, captchaResult);
+        LFGSimpleApi.Directions directionsApi = new LFGSimpleApi.Directions(
+                originLat, originLng, destLat, destLng, transport, null);
 
         directionsApi.downloadRoute(activity, response -> {
-            if (canceled)
-                return;
+            if (canceled) return;
 
             if (response.code == CODE_SUCCESS) {
-                response.distance = 0;
+                activity.runOnUiThread(() ->
+                        listener.onRouteBuilt(
+                                response.result,
+                                response.speedLimits,   // null for pedestrian
+                                originLat, originLng,
+                                destLat, destLng,
+                                response.distance,
+                                transport));
 
-                activity.runOnUiThread(() -> listener.onRouteBuilt(response.result, response.speedLimits, originLat, originLng, destLat, destLng, response.distance, transport));
-            } else if (response.code == CODE_CONNECTION_FAILED || response.code == CODE_UNKNOWN_ERROR) {
+            } else {
+                // CODE_CONNECTION_FAILED or CODE_UNKNOWN_ERROR
+                ArrayList<GeoPoint> fallback = new ArrayList<>();
+                fallback.add(new GeoPoint(originLat, originLng));
+                fallback.add(new GeoPoint(destLat, destLng));
 
-                response.result = new ArrayList<>();
-                response.result.add(new GeoPoint(originLat, originLng));
-                response.result.add(new GeoPoint(destLat, destLng));
-                response.distance = 0;
-
-                activity.runOnUiThread(() -> listener.onRouteError(response.result, originLat, originLng, destLat, destLng, response.distance, transport));
-            } else if (response.code == CODE_RECAPTCHA_RESPONSE || response.code == CODE_BAD_RECAPTCHA_RESPONSE) {
-                activity.runOnUiThread(listener::captchaResponse);
+                activity.runOnUiThread(() ->
+                        listener.onRouteError(
+                                fallback,
+                                originLat, originLng,
+                                destLat, destLng,
+                                0, transport));
             }
         });
-
-
     }
 
     public void cancel() {
         this.canceled = true;
     }
-
 }

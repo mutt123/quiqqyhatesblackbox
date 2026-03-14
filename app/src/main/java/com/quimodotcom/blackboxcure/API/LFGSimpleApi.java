@@ -9,129 +9,92 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.osmdroid.util.GeoPoint;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
 
 import okhttp3.Call;
 import okhttp3.Callback;
-import okhttp3.MediaType;
 import okhttp3.Request;
-import okhttp3.RequestBody;
 import okhttp3.Response;
 import com.quimodotcom.blackboxcure.Enumerations.ERouteTransport;
 import com.quimodotcom.blackboxcure.WebClient;
 
-// Created by LittleAngry
-// powered by OpenRouteService
+// Routing: OSRM (https://project-osrm.org) — open source, no API key required
+// Elevation: Open-Elevation (https://open-elevation.com) — open source, no API key required
 public class LFGSimpleApi {
 
-    public static final String API_BASE_URL = "https://littleangry.ru/lfg/";
+    // OSRM public instance — foot profile only
+    private static final String OSRM_BASE_URL = "https://router.project-osrm.org/route/v1/foot/";
+    // Open-Elevation public instance
+    private static final String ELEVATION_URL = "https://api.open-elevation.com/api/v1/lookup";
 
     public static final int CODE_SUCCESS = 0;
     public static final int CODE_CONNECTION_FAILED = -1;
+    // kept for source-compatibility with RouteBuilder, never triggered anymore
     public static final int CODE_RECAPTCHA_RESPONSE = -2;
     public static final int CODE_BAD_RECAPTCHA_RESPONSE = -3;
     public static final int CODE_UNKNOWN_ERROR = -4;
 
+    public LFGSimpleApi() {}
 
-    public LFGSimpleApi() {
-    }
-
-    public static class Geocoder {
-        public static String getAutcompleteURL(String address, double latitude, double longitude) {
-
-            StringBuilder builder = new StringBuilder();
-            builder.append(API_BASE_URL)
-                    .append("autocomplete.php")
-                    .append("?text=")
-                    .append(address)
-                    .append("&focus_point_lon=")
-                    .append(longitude)
-                    .append("&focus_point_lat=")
-                    .append(latitude);
-
-
-            return builder.toString();
-        }
-    }
-
+    // ─────────────────────────────────────────────────────────────────────────
+    // Elevation  (Open-Elevation)
+    // ─────────────────────────────────────────────────────────────────────────
     public static class Elevation {
-        private final File mCacheDir;
 
         public interface ElevationCallback {
             void onRequestSuccess(float altitude);
-            void onCaptchaResult();
+            void onCaptchaResult(); // kept for interface compatibility, never called
             void onRequestError();
         }
 
-        public Elevation(File cacheDir) {
-            this.mCacheDir = cacheDir;
-        }
+        public Elevation() {}
 
-        private String getElevationServiceURL(double latitude, double longitude) {
-            StringBuilder builder = new StringBuilder();
-            builder.append(API_BASE_URL)
-                    .append("get_altitude.php")
-                    .append("?geometry=")
-                    .append(longitude).append(",").append(latitude);
-            return builder.toString();
-        }
+        /** @deprecated cacheDir is no longer used — kept for call-site compatibility */
+        @Deprecated
+        public Elevation(java.io.File cacheDir) {}
 
-        public void getElevation(double latitude, double longitude, String challengeResult, ElevationCallback callback) {
+        public void getElevation(double latitude, double longitude,
+                                 String ignoredChallengeResult,
+                                 ElevationCallback callback) {
 
-            JSONObject root = new JSONObject();
-            try {
-                root.put("challenge_result", challengeResult);
+            String url = ELEVATION_URL + "?locations=" + latitude + "," + longitude;
 
-                MediaType JSON = MediaType.parse("application/json; charset=utf-8");
-                RequestBody body = RequestBody.create(root.toString(), JSON);
+            Request request = new Request.Builder()
+                    .url(url)
+                    .get()
+                    .build();
 
-                Request request = new Request.Builder()
-                        .url(getElevationServiceURL(latitude, longitude))
-                        .post(body)
-                        .build();
+            WebClient.getInstance().makeRequest(request, new Callback() {
+                @Override
+                public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                    Log.e("Elevation", "onFailure", e);
+                    callback.onRequestError();
+                }
 
-                WebClient.getInstance().makeRequest(request, new Callback() {
-                    @Override
-                    public void onFailure(@NonNull Call call, @NonNull IOException e) {
+                @Override
+                public void onResponse(@NonNull Call call, @NonNull Response response)
+                        throws IOException {
+                    try {
+                        String body = response.body().string();
+                        JSONObject root = new JSONObject(body);
+                        JSONArray results = root.getJSONArray("results");
+                        float altitude = (float) results.getJSONObject(0).getDouble("elevation");
+                        callback.onRequestSuccess(altitude);
+                    } catch (JSONException e) {
+                        Log.e("Elevation", "parse error", e);
                         callback.onRequestError();
                     }
-
-                    @Override
-                    public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
-                        String body = response.body().string();
-
-                        try {
-                            JSONObject root = new JSONObject(body);
-
-                            if (root.has("error_text") && root.has("error_code")) {
-                                int code = root.getInt("error_code");
-                                if (code == CODE_RECAPTCHA_RESPONSE || code == CODE_BAD_RECAPTCHA_RESPONSE) {
-                                    callback.onCaptchaResult();
-                                    return;
-                                }
-                            }
-
-                            JSONArray geometry = root.getJSONArray("geometry");
-                            float altitude = (float) geometry.getDouble(2);
-                            callback.onRequestSuccess(altitude);
-                        } catch (JSONException e) {
-                            android.util.Log.d(com.quimodotcom.blackboxcure.BuildConfig.APPLICATION_ID, null, e);
-                            callback.onRequestError();
-                        }
-                    }
-                });
-
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
+                }
+            });
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Directions  (OSRM — foot profile)
+    // ─────────────────────────────────────────────────────────────────────────
     public static class Directions {
+
         private final double sourcelat;
         private final double sourcelong;
         private final double destlat;
@@ -139,16 +102,11 @@ public class LFGSimpleApi {
 
         private double distance;
 
-        private final ERouteTransport transport;
-
-        private final String captchaResult;
-
         public static class DirectionsResponse {
             public String error;
             public int code;
-
             public ArrayList<GeoPoint> result;
-            public ArrayList<Integer> speedLimits;
+            public ArrayList<Integer> speedLimits; // always null — OSRM foot has no speed limits
             public double distance;
         }
 
@@ -156,155 +114,94 @@ public class LFGSimpleApi {
             void onResult(DirectionsResponse response);
         }
 
-        public Directions(double sourcelat, double sourcelong, double destlat, double destlong, ERouteTransport transport, String captchaResult) {
+        /**
+         * transport and captchaResult are accepted for call-site compatibility but ignored.
+         * The OSRM foot profile is always used.
+         */
+        public Directions(double sourcelat, double sourcelong,
+                          double destlat, double destlong,
+                          ERouteTransport transport, String captchaResult) {
             this.sourcelat = sourcelat;
             this.sourcelong = sourcelong;
             this.destlat = destlat;
             this.destlong = destlong;
-            this.transport = transport;
-            this.captchaResult = captchaResult;
         }
 
-        private String getRouteBuilderUrl() {
-            String profilePath;
-            switch (transport) {
-                case ROUTE_WALK:
-                    profilePath = "foot-walking";
-                    break;
-                case ROUTE_BIKE:
-                    profilePath = "cycling-regular";
-                    break;
-                case ROUTE_CAR:
-                default:
-                    profilePath = "driving-car";
-                    break;
-            }
-            return "https://api.openrouteservice.org/v2/directions/" + profilePath + "/geojson";
+        private String buildOsrmUrl() {
+            // OSRM expects  lon,lat  order
+            return OSRM_BASE_URL
+                    + sourcelong + "," + sourcelat
+                    + ";"
+                    + destlong + "," + destlat
+                    + "?overview=full&geometries=geojson";
         }
 
+        /** context parameter accepted for call-site compatibility but not used. */
         public void downloadRoute(android.content.Context context, DirectionsCallback callback) {
+            downloadRoute(callback);
+        }
+
+        public void downloadRoute(DirectionsCallback callback) {
             DirectionsResponse response = new DirectionsResponse();
 
-            String orsApiKey = com.quimodotcom.blackboxcure.AppPreferences.getOpenRouteServiceApiKey(context);
-            if (orsApiKey == null || orsApiKey.trim().isEmpty()) {
-                response.code = CODE_UNKNOWN_ERROR;
-                response.error = "Please enter an OpenRouteService API Key in the App Settings.";
-                callback.onResult(response);
-                return;
-            }
-
-            Request request;
-
-            // Create POST request for OpenRouteService
-            Map<String, Object[]> coordinates = new HashMap<>();
-            coordinates.put("coordinates", new Object[]{
-                    new Object[]{sourcelong, sourcelat},
-                    new Object[]{destlong, destlat},
-            });
-
-            JSONObject data = new JSONObject(coordinates);
-            try {
-                data.put("elevation", "true");
-
-                // Add extra_info to retrieve speed limits for roads
-                JSONArray extraInfo = new JSONArray();
-                extraInfo.put("waytypes");
-                extraInfo.put("steepness");
-                extraInfo.put("speedlimit");
-                data.put("extra_info", extraInfo);
-
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
-
-            MediaType JSON = MediaType.parse("application/json; charset=utf-8");
-            RequestBody body = RequestBody.create(data.toString(), JSON);
-
-            request = new Request.Builder()
-                    .url(getRouteBuilderUrl())
-                    .addHeader("Authorization", orsApiKey)
-                    .addHeader("Content-Type", "application/json; charset=utf-8")
-                    .addHeader("Accept", "application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8")
-                    .post(body)
+            Request request = new Request.Builder()
+                    .url(buildOsrmUrl())
+                    .get()
                     .build();
 
             WebClient.getInstance().makeRequest(request, new Callback() {
                 @Override
                 public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                    Log.e("RouteBuilder", "onFailure: ", e);
+                    Log.e("RouteBuilder", "onFailure", e);
                     response.error = e.getMessage();
                     response.code = CODE_CONNECTION_FAILED;
                     callback.onResult(response);
                 }
 
                 @Override
-                public void onResponse(@NonNull Call call, @NonNull Response _response) throws IOException {
+                public void onResponse(@NonNull Call call, @NonNull Response _response)
+                        throws IOException {
                     try {
                         String responseString = _response.body().string();
                         Log.d("RouteBuilder", "onResponse: " + responseString);
-                        JSONObject contentObject = new JSONObject(responseString);
 
-                        if (contentObject.has("error")) {
+                        JSONObject root = new JSONObject(responseString);
+
+                        // OSRM returns {"code":"Ok",...} on success
+                        String code = root.optString("code", "");
+                        if (!code.equals("Ok")) {
                             response.code = CODE_UNKNOWN_ERROR;
-                            response.error = contentObject.optJSONObject("error").optString("message", "Unknown ORS error");
+                            response.error = root.optString("message", "OSRM error: " + code);
                             callback.onResult(response);
                             return;
                         }
 
-                        if (contentObject.has("code") && !contentObject.getString("code").equals("Ok")) {
-                            response.code = CODE_UNKNOWN_ERROR;
-                            response.error = contentObject.optString("message", "Unknown routing error");
-                            callback.onResult(response);
-                            return;
+                        JSONArray routes = root.getJSONArray("routes");
+                        JSONObject route = routes.getJSONObject(0);
+
+                        // Distance in metres
+                        distance = route.getDouble("distance");
+                        response.distance = distance;
+
+                        // Geometry: GeoJSON LineString  →  coordinates: [[lon,lat], ...]
+                        JSONObject geometry = route.getJSONObject("geometry");
+                        JSONArray coordinates = geometry.getJSONArray("coordinates");
+
+                        ArrayList<GeoPoint> points = new ArrayList<>(coordinates.length());
+                        for (int i = 0; i < coordinates.length(); i++) {
+                            JSONArray coord = coordinates.getJSONArray(i);
+                            double lon = coord.getDouble(0);
+                            double lat = coord.getDouble(1);
+                            // elevation not included in OSRM foot response by default
+                            points.add(new GeoPoint(lat, lon));
                         }
 
-                        JSONArray routeArray = contentObject.has("routes") ? contentObject.getJSONArray("routes") : contentObject.getJSONArray("features");
-                        JSONObject routes = routeArray.getJSONObject(0);
-
-                        if (contentObject.has("features")) { // ORS v2
-                            JSONObject geometry = routes.getJSONObject("geometry");
-                            JSONArray coordinates = geometry.getJSONArray("coordinates");
-                            ArrayList<GeoPoint> points = new ArrayList<>();
-                            for (int i = 0; i < coordinates.length(); i++) {
-                                JSONArray coord = coordinates.getJSONArray(i);
-                                points.add(new GeoPoint(coord.getDouble(1), coord.getDouble(0)));
-                            }
-                            response.result = points;
-                            response.distance = distance = routes.getJSONObject("properties").getJSONObject("summary").getDouble("distance");
-
-                            // Extract speed limits if requested and available
-                            response.speedLimits = new ArrayList<>();
-                            if (routes.getJSONObject("properties").has("extras") && routes.getJSONObject("properties").getJSONObject("extras").has("speedlimit")) {
-                                JSONArray speedLimitsArr = routes.getJSONObject("properties").getJSONObject("extras").getJSONObject("speedlimit").getJSONArray("values");
-                                int currentSpeedLimitIdx = 0;
-                                int currentSpeed = 50; // default
-                                for (int i = 0; i < coordinates.length(); i++) {
-                                    if (currentSpeedLimitIdx < speedLimitsArr.length()) {
-                                        JSONArray segment = speedLimitsArr.getJSONArray(currentSpeedLimitIdx);
-                                        int endIdx = segment.getInt(1);
-                                        if (i >= endIdx) {
-                                            currentSpeedLimitIdx++;
-                                            if (currentSpeedLimitIdx < speedLimitsArr.length()) {
-                                                segment = speedLimitsArr.getJSONArray(currentSpeedLimitIdx);
-                                                currentSpeed = segment.getInt(2);
-                                            }
-                                        } else {
-                                            currentSpeed = segment.getInt(2);
-                                        }
-                                    }
-                                    response.speedLimits.add(currentSpeed);
-                                }
-                            }
-                        } else { // OSRM
-                            String encodedString = routes.getString("geometry");
-                            // OSRM returns 2D polylines (lat/lng), not 3D (no elevation).
-                            response.result = decodePolyline(encodedString, false);
-                            response.distance = distance = routes.getDouble("distance");
-                        }
-
+                        response.result = points;
+                        response.speedLimits = null; // pedestrian — no speed limits
                         response.code = CODE_SUCCESS;
+
                     } catch (Exception e) {
-                        android.util.Log.d(com.quimodotcom.blackboxcure.BuildConfig.APPLICATION_ID, null, e);
+                        Log.e("RouteBuilder", "parse error", e);
                         response.code = CODE_UNKNOWN_ERROR;
                         response.error = e.getMessage();
                     }
@@ -314,62 +211,8 @@ public class LFGSimpleApi {
             });
         }
 
-
         public double getDistance() {
             return distance;
         }
-
-        public static ArrayList<GeoPoint> decodePolyline(String encoded, boolean is3D) {
-            ArrayList<GeoPoint> poly = new ArrayList<>();
-            int index = 0;
-            int len = encoded.length();
-            int lat = 0, lng = 0, ele = 0;
-            while (index < len) {
-                // latitude
-                int b, shift = 0, result = 0;
-                do {
-                    b = encoded.charAt(index++) - 63;
-                    result |= (b & 0x1f) << shift;
-                    shift += 5;
-                } while (b >= 0x20);
-                int deltaLatitude = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
-                lat += deltaLatitude;
-
-                // longitude
-                shift = 0;
-                result = 0;
-                do {
-                    b = encoded.charAt(index++) - 63;
-                    result |= (b & 0x1f) << shift;
-                    shift += 5;
-                } while (b >= 0x20);
-                int deltaLongitude = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
-                lng += deltaLongitude;
-
-                if (is3D) {
-                    // elevation
-                    shift = 0;
-                    result = 0;
-                    do {
-                        b = encoded.charAt(index++) - 63;
-                        result |= (b & 0x1f) << shift;
-                        shift += 5;
-                    } while (b >= 0x20);
-                    int deltaElevation = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
-                    ele += deltaElevation;
-
-                    GeoPoint p = new GeoPoint((double) lat / 1e5, (double) lng / 1e5, (double) ele / 100);
-                    poly.add(p);
-                } else {
-                    GeoPoint p = new GeoPoint((double) lat / 1e5, (double) lng / 1e5, Integer.MIN_VALUE);
-                    poly.add(p);
-                }
-            }
-            return poly;
-        }
-
-
     }
-
 }
-

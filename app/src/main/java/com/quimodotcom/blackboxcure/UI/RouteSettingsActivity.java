@@ -26,9 +26,6 @@ import com.quimodotcom.blackboxcure.OnSingleClickListener;
 import com.quimodotcom.blackboxcure.Presenter.RouteSettingsPresenter;
 import com.quimodotcom.blackboxcure.R;
 
-/*
- * Created by LittleAngry on 09.01.19 (macOS 10.12)
- * */
 public class RouteSettingsActivity extends FragmentActivity implements RouteSettingsImpl.UI {
 
     private TextView mPauseAtStartingTimer;
@@ -68,7 +65,7 @@ public class RouteSettingsActivity extends FragmentActivity implements RouteSett
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-
+/*
         if (requestCode == CaptchaActivity.ACTIVITY_REQUEST_CODE) {
             if (mPresenter != null && resultCode == RESULT_OK) {
                 String challengeResult = data.getStringExtra(CaptchaActivity.KEY_CAPTCHA_RESULT);
@@ -79,7 +76,7 @@ public class RouteSettingsActivity extends FragmentActivity implements RouteSett
                 onAltitudeDetermined(false, false);
             }
         }
-
+*/
     }
 
     @Override
