@@ -2,12 +2,16 @@ package com.quimodotcom.blackboxcure.Services;
 
 import android.app.Service;
 import android.content.Intent;
+import android.content.BroadcastReceiver;
+import android.content.IntentFilter;
+import android.content.Context;
 import android.location.Location;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.RemoteException;
 import android.os.SystemClock;
+import android.os.Build;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
@@ -52,7 +56,7 @@ public class RouteSpooferService extends Service {
     private GeoPoint    mCurrentStep;
     private Handler     mHandler;
 
-    private int mSpeed;
+    private volatile int mSpeed;
     private int mSpeedDiff;
     private int mDefaultUnit;
     private int mTrafficSide;
@@ -73,10 +77,14 @@ public class RouteSpooferService extends Service {
     private boolean mBrakeAtTurning;
     private boolean isMockLocationsEnabled;
     private boolean isSystemApp;
-    private boolean isPaused;
+    private volatile boolean isPaused;
+    private volatile boolean mSpeedManualOverride = false; // NEU
+    private volatile int mBaseSpeed = 0;
     private boolean waitingStart;
 
     private Intent mUpdateUI;
+
+    private BroadcastReceiver mOverlayControlReceiver;
 
     private int                        mRouteSlice  = 0;
     private ArrayList<GeoPoint>[]      mSlices;
@@ -107,6 +115,50 @@ public class RouteSpooferService extends Service {
         isSystemApp            = PermissionManager.isSystemApp(this);
         MockLocProvider.initTestProvider();
 
+        mOverlayControlReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (intent.hasExtra(MainServiceControl.KEY_PAUSE_TOGGLE)) {
+                    isPaused = intent.getBooleanExtra(MainServiceControl.KEY_PAUSE_TOGGLE, false);
+                    if (!isPaused) mainRouteRunnable.resetDrift();
+                }
+                //if (intent.hasExtra(MainServiceControl.KEY_SPEED_DELTA)) {
+                    //int delta = intent.getIntExtra(MainServiceControl.KEY_SPEED_DELTA, 0);
+                    //mSpeed = Math.max(1, mSpeed + delta);
+                    //arrayRunSpeed = mRandomizer.getArrayRunSpeed(mSpeed, mUpdatesDelay);
+                //}
+
+                if (intent.hasExtra(MainServiceControl.KEY_SPEED_DELTA)) {
+                    int deltaKmh = intent.getIntExtra(MainServiceControl.KEY_SPEED_DELTA, 0);
+                    int deltaInternal;
+                    if (mDefaultUnit == AppPreferences.METERS) {
+                        deltaInternal = (int) Geometry.Speed.metersToKilometers(deltaKmh);
+                    } else if (mDefaultUnit == AppPreferences.MILES) {
+                        deltaInternal = (int) Geometry.Speed.milesToKilometers(deltaKmh);
+                    } else {
+                        deltaInternal = deltaKmh;
+                    }
+                    mSpeed = Math.max(1, mSpeed + deltaInternal);
+                    mBaseSpeed = mSpeed;           // ← NEU
+                    mSpeedManualOverride = true;
+                }
+
+
+            }
+        };
+        //registerReceiver(mOverlayControlReceiver,
+        //        new IntentFilter(MainServiceControl.ACTION_OVERLAY_CONTROL));
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(mOverlayControlReceiver,
+                    new IntentFilter(MainServiceControl.ACTION_OVERLAY_CONTROL),
+                    Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(mOverlayControlReceiver,
+                    new IntentFilter(MainServiceControl.ACTION_OVERLAY_CONTROL));
+        }
+
+
         mAccuracy       = intent.getFloatExtra(KEY_ACCURACY, 10);
         mUpdatesDelay   = intent.getIntExtra(KEY_UPDATES_DELAY, 1000);
         mUpdatesDrift   = AppPreferences.getUpdatesDrift(this);
@@ -134,6 +186,7 @@ public class RouteSpooferService extends Service {
 
         Geometry.UnitCast casted = castAllUnits(mSpeed, mSpeedDiff);
         mSpeed     = casted.speed;
+        mBaseSpeed = mSpeed;
         mSpeedDiff = casted.speedDiff;
 
         mUpdateUI = new Intent();
@@ -182,6 +235,10 @@ public class RouteSpooferService extends Service {
         mainRouteThread.interrupt();
         if (mHandler != null && mainRouteRunnable != null)
             mHandler.removeCallbacks(mainRouteRunnable);
+        if (mOverlayControlReceiver != null) {
+            try { unregisterReceiver(mOverlayControlReceiver); }
+            catch (IllegalArgumentException ignored) {}
+        }
         stopForeground(true);
         MockLocProvider.removeProviders();
     }
@@ -238,6 +295,8 @@ public class RouteSpooferService extends Service {
         mUpdateUI.putExtra(UI_SPEED_KEY, speed);
         mUpdateUI.putExtra(UI_PASSED_DISTANCE, distance);
         sendBroadcast(mUpdateUI);
+        MainServiceControl.notifyOverlaySpeed(
+                RouteSpooferService.this, (int) speed, mBaseSpeed, isPaused);
     }
 
     public static class FakeRouteInfo {
@@ -367,7 +426,10 @@ public class RouteSpooferService extends Service {
             mSpoofRouteSpeeds = (mSlicesSpeeds != null && mSlicesSpeeds.length > mRouteSlice)
                     ? mSlicesSpeeds[mRouteSlice] : null;
             MultipleRoutesInfo routeInfo = mRoutes.get(mRouteSlice);
-            mSpeed = routeInfo.getSpeed(); mSpeedDiff = routeInfo.getSpeedDiff();
+            if (!mSpeedManualOverride) {
+                mSpeed = routeInfo.getSpeed();
+                mSpeedDiff = routeInfo.getSpeedDiff();
+            }
             mElevation = routeInfo.getElevation(); mElevationDiff = routeInfo.getElevationDiff();
             SystemClock.sleep(routeInfo.getStartingPauseTime());
             arrayRunSpeed = 0; arrayRunIndex = 0; isNeedBrake = false;

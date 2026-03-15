@@ -345,6 +345,7 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
 
     @Override
     public void handleStop() {
+        MainServiceControl.stopOverlay(mContext);
         if (MainServiceControl.isRouteSpoofingServiceRunning(mContext)) {
             mContext.stopService(new Intent(mContext, RouteSpooferService.class));
             RouteSettingsPresenter.unbindService();
@@ -438,6 +439,7 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
             mActivity.startActivityForResult(new Intent(mContext, MockLocationPermissionActivity.class), MockLocationPermissionActivity.ML_GRANTED_REQUEST_CODE);
 
         }
+        startControlOverlay();   // ← NEU
     }
 /*
     @Override
@@ -1045,6 +1047,28 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
                         .putFloat(BlackBoxCureApp.ZOOM, (float) mMap.getZoomLevelDouble())
                         .apply();
         }
+    }
+    private void startControlOverlay() {
+        if (!PermissionManager.canDrawOverlays(mContext)) {
+            Dialog.OnClickListener grant = (DialogInterface d, int i) -> {
+                Intent intent = new Intent(
+                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:" + mContext.getPackageName()));
+                // REQUEST CODE 4 – nach Rückkehr in onActivityResult prüfen
+                mActivity.startActivityForResult(intent, 4);
+            };
+            Dialog.OnClickListener cancel = (DialogInterface d, int i) -> d.dismiss();
+
+            mUserInterface.alertDialog(
+                    mContext.getString(R.string.draw_overlays_permission),
+                    mContext.getString(R.string.draw_overlays_summary),
+                    true,
+                    mContext.getString(R.string.grant),   grant,
+                    mContext.getString(R.string.cancel),  cancel,
+                    R.drawable.ic_outline_layers_48);
+            return;
+        }
+        MainServiceControl.startOverlay(mContext);
     }
 
 

@@ -59,6 +59,7 @@ import com.quimodotcom.blackboxcure.Presenter.RouteSettingsPresenter;
 import com.quimodotcom.blackboxcure.R;
 import com.quimodotcom.blackboxcure.Services.RealtimeSpooferService;
 import com.quimodotcom.blackboxcure.Services.RouteSpooferService;
+import com.quimodotcom.blackboxcure.MainServiceControl;
 
 /*
  * Created by LittleAngry on 25.12.18 (macOS 10.12)
@@ -332,7 +333,11 @@ public class MapsActivity extends Edge2EdgeActivity implements MapsImpl.UIImpl, 
             if (mPresenter != null)
                 mPresenter.onSpoofClick(new GeoPoint(mMap.getMapCenter().getLatitude(), mMap.getMapCenter().getLongitude()));
         }
-
+     else if (requestCode == 4) {
+        if (PermissionManager.canDrawOverlays(this)) {
+            MainServiceControl.startOverlay(this);
+        }
+    }
         mMap.invalidate();
     }
 

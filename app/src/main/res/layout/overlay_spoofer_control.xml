@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Floating Overlay – kollabiert als kleiner Pill-Button,
+  aufgeklappt als Kontroll-Panel.
+  Zielpfad: res/layout/overlay_spoofer_control.xml
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content">
+
+    <!-- ── Kollabierter Zustand (Standard) ── -->
+    <LinearLayout
+        android:id="@+id/overlay_collapsed"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:background="@drawable/overlay_pill_bg"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:elevation="8dp">
+
+        <!-- Hamburger-Icon (drei Striche) -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="☰"
+            android:textColor="#FFFFFF"
+            android:textSize="20sp" />
+    </LinearLayout>
+
+    <!-- ── Aufgeklapptes Panel ── -->
+    <LinearLayout
+        android:id="@+id/overlay_expanded"
+        android:layout_width="180dp"
+        android:layout_height="wrap_content"
+        android:background="@drawable/overlay_pill_bg"
+        android:elevation="8dp"
+        android:orientation="vertical"
+        android:padding="12dp"
+        android:visibility="gone">
+
+        <!-- Tap zum Einklappen -->
+        <TextView
+            android:id="@+id/overlay_collapse_btn"
+            android:layout_width="match_parent"
+            android:layout_height="32dp"
+            android:gravity="center"
+            android:text="☰  ▲"
+            android:textColor="#AAFFFFFF"
+            android:textSize="13sp"
+            android:layout_marginBottom="8dp"/>
+
+        <!-- Pause / Resume -->
+        <TextView
+            android:id="@+id/overlay_pause_btn"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:background="@drawable/overlay_btn_bg"
+            android:gravity="center"
+            android:text="⏸  Pause"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:layout_marginBottom="8dp"/>
+
+        <!-- Divider -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#44FFFFFF"
+            android:layout_marginBottom="8dp"/>
+
+        <!-- Geschwindigkeit Label -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="Geschwindigkeit"
+            android:textColor="#AAFFFFFF"
+            android:textSize="11sp"
+            android:layout_marginBottom="6dp"/>
+
+        <!-- Speed-Anzeige -->
+        <TextView
+            android:id="@+id/overlay_speed_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="–"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="6dp"/>
+
+        <TextView
+            android:id="@+id/overlay_base_speed_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="Basis: –"
+            android:textColor="#AAFFFFFF"
+            android:textSize="12sp"
+            android:layout_marginBottom="6dp"/>
+
+        <!-- +/- Buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:id="@+id/overlay_speed_minus"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@drawable/overlay_btn_bg"
+                android:gravity="center"
+                android:text="−1"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:layout_marginEnd="4dp"/>
+
+            <TextView
+                android:id="@+id/overlay_speed_plus"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@drawable/overlay_btn_bg"
+                android:gravity="center"
+                android:text="+1"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:layout_marginStart="4dp"/>
+        </LinearLayout>
+
+        <!-- Schließen -->
+        <TextView
+            android:id="@+id/overlay_close_btn"
+            android:layout_width="match_parent"
+            android:layout_height="36dp"
+            android:background="@drawable/overlay_btn_bg"
+            android:gravity="center"
+            android:text="✕  Schließen"
+            android:textColor="#FF6666"
+            android:textSize="13sp"/>
+    </LinearLayout>
+
+</FrameLayout>
