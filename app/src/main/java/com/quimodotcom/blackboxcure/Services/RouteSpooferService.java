@@ -22,7 +22,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import com.quimodotcom.blackboxcure.AppPreferences;
 import com.quimodotcom.blackboxcure.FusedLocationsProvider;
 import com.quimodotcom.blackboxcure.Geometry;
-import com.quimodotcom.blackboxcure.BlackBoxCureApp;
+import com.quimodotcom.blackboxcure.ListickApp;
 import com.quimodotcom.blackboxcure.LocationOperations;
 import com.quimodotcom.blackboxcure.MainServiceControl;
 import com.quimodotcom.blackboxcure.MockLocProvider;
@@ -33,32 +33,32 @@ import com.quimodotcom.blackboxcure.Presenter.RouteSettingsPresenter;
 import com.quimodotcom.blackboxcure.Randomizer;
 import com.quimodotcom.blackboxcure.RouteManager;
 import com.quimodotcom.blackboxcure.SpoofingPlaceInfo;
+import com.quimodotcom.blackboxcure.Services.ISpooferService;
 
 public class RouteSpooferService extends Service {
 
-    public static final String KEY_ACCURACY = "accuracy";
-    public static final String KEY_DEVIATION = "deviation";
-    public static final String KEY_UPDATES_DELAY = "updates_delay";
-    public static final String KEY_DEFAULT_UNIT = "default_unit";
+    public static final String KEY_ACCURACY         = "accuracy";
+    public static final String KEY_DEVIATION        = "deviation";
+    public static final String KEY_UPDATES_DELAY    = "updates_delay";
+    public static final String KEY_DEFAULT_UNIT     = "default_unit";
     public static final String KEY_BRAKE_AT_TURINING = "brake_at_turning";
 
-    public static final String UI_SPEED_KEY = "ui_speed_key";
-    public static final String UI_PASSED_DISTANCE = "ui_passed_distance";
-    public static final String UI_TOTAL_DISTANCE = "ui_total_distance";
+    public static final String UI_SPEED_KEY        = "ui_speed_key";
+    public static final String UI_PASSED_DISTANCE  = "ui_passed_distance";
+    public static final String UI_TOTAL_DISTANCE   = "ui_total_distance";
 
     private FusedLocationsProvider mFusedLocationProvider;
-    private Randomizer mRandomizer;
-    private GeoPoint mCurrentStep;
-    private Handler mHandler;
+    private Randomizer  mRandomizer;
+    private GeoPoint    mCurrentStep;
+    private Handler     mHandler;
 
     private int mSpeed;
     private int mSpeedDiff;
     private int mDefaultUnit;
     private int mTrafficSide;
-
     private int mOriginDelay;
-    private int mDestDelay;
     private int mUpdatesDelay;
+    private int mUpdatesDrift;   // ±Drift in ms, aus Settings
 
     private float mAccuracy;
     private float mElevation;
@@ -68,7 +68,7 @@ public class RouteSpooferService extends Service {
     private double mTotalDistance;
     private double mPassedDistance;
 
-    private boolean isClosedRoute = false;
+    private boolean isClosedRoute     = false;
     private boolean mDeviation;
     private boolean mBrakeAtTurning;
     private boolean isMockLocationsEnabled;
@@ -78,112 +78,77 @@ public class RouteSpooferService extends Service {
 
     private Intent mUpdateUI;
 
-    private int mRouteSlice = 0;
-    private ArrayList<GeoPoint>[] mSlices;
-    private ArrayList<Integer>[] mSlicesSpeeds;
-    private ArrayList<GeoPoint> mSpoofRoute = new ArrayList<GeoPoint>();
-    private ArrayList<Integer> mSpoofRouteSpeeds = new ArrayList<>();
-    private ArrayList<MultipleRoutesInfo> mRoutes = new ArrayList<>();
+    private int                        mRouteSlice  = 0;
+    private ArrayList<GeoPoint>[]      mSlices;
+    private ArrayList<Integer>[]       mSlicesSpeeds;
+    private ArrayList<GeoPoint>        mSpoofRoute       = new ArrayList<>();
+    private ArrayList<Integer>         mSpoofRouteSpeeds = new ArrayList<>();
+    private ArrayList<MultipleRoutesInfo> mRoutes        = new ArrayList<>();
 
     private static class SourceData {
-        public static double totalDistance;
-        public static boolean isClosedRoute;
+        static double  totalDistance;
+        static boolean isClosedRoute;
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
         MainServiceControl.startServiceForeground(this);
-
         return START_STICKY;
-    }
-
-    private Geometry.UnitCast castAllUnits(int speed, int speedDiff) {
-
-        Geometry.UnitCast casted = new Geometry.UnitCast();
-
-        if (mDefaultUnit == AppPreferences.METERS) {
-            speed = (int) Geometry.Speed.metersToKilometers(speed);
-            speedDiff = (int) Geometry.Speed.metersToKilometers(speedDiff);
-        } else if (mDefaultUnit == AppPreferences.MILES) {
-            speed = (int) Geometry.Speed.milesToKilometers(speed);
-            speedDiff = (int) Geometry.Speed.milesToKilometers(speedDiff);
-        }
-
-        casted.speed = speed;
-        casted.speedDiff = speedDiff;
-
-        return casted;
-    }
-
-    private void cast() {
-        if (mDefaultUnit == AppPreferences.KILOMETERS)
-            mTotalDistance = Geometry.Distance.metersToKilometers(mTotalDistance);
-        if (mDefaultUnit == AppPreferences.MILES) {
-            mTotalDistance = Geometry.Distance.metersToMiles(mTotalDistance);
-        }
     }
 
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
-        mHandler = new Handler();
-        mRandomizer = new Randomizer();
+        mHandler               = new Handler();
+        mRandomizer            = new Randomizer();
         mFusedLocationProvider = new FusedLocationsProvider(this);
         isMockLocationsEnabled = PermissionManager.isMockLocationsEnabled(this);
-        isSystemApp = PermissionManager.isSystemApp(this);
+        isSystemApp            = PermissionManager.isSystemApp(this);
         MockLocProvider.initTestProvider();
 
-        mAccuracy = intent.getFloatExtra(KEY_ACCURACY, 10);
-        mUpdatesDelay = intent.getIntExtra(KEY_UPDATES_DELAY, 1000);
-        mDeviation = intent.getBooleanExtra(KEY_DEVIATION, true);
-        mDefaultUnit = intent.getIntExtra(KEY_DEFAULT_UNIT, AppPreferences.METERS);
+        mAccuracy       = intent.getFloatExtra(KEY_ACCURACY, 10);
+        mUpdatesDelay   = intent.getIntExtra(KEY_UPDATES_DELAY, 1000);
+        mUpdatesDrift   = AppPreferences.getUpdatesDrift(this);
+        mDeviation      = intent.getBooleanExtra(KEY_DEVIATION, true);
+        mDefaultUnit    = intent.getIntExtra(KEY_DEFAULT_UNIT, AppPreferences.METERS);
         mBrakeAtTurning = intent.getBooleanExtra(KEY_BRAKE_AT_TURINING, true);
 
-        mTotalDistance = intent.getDoubleExtra(BlackBoxCureApp.DISTANCE, 0);
-        mSpeed = intent.getIntExtra(BlackBoxCureApp.SPEED, 0);
-        mBearing = (float) ThreadLocalRandom.current().nextDouble(5, 180);
-        mSpeedDiff = intent.getIntExtra(RouteSettingsPresenter.SPEED_DIFF, 0);
-        mTrafficSide = intent.getIntExtra(AppPreferences.TRAFFIC_SIDE, AppPreferences.RIGHT_HAND_TRAFFIC);
-        mElevation = intent.getFloatExtra(RouteSettingsPresenter.ELEVATION, 197);
+        mTotalDistance = intent.getDoubleExtra(ListickApp.DISTANCE, 0);
+        mSpeed         = intent.getIntExtra(ListickApp.SPEED, 0);
+        mBearing       = (float) ThreadLocalRandom.current().nextDouble(5, 180);
+        mSpeedDiff     = intent.getIntExtra(RouteSettingsPresenter.SPEED_DIFF, 0);
+        mTrafficSide   = intent.getIntExtra(AppPreferences.TRAFFIC_SIDE, AppPreferences.RIGHT_HAND_TRAFFIC);
+        mElevation     = intent.getFloatExtra(RouteSettingsPresenter.ELEVATION, 197);
         mElevationDiff = intent.getFloatExtra(RouteSettingsPresenter.ELEVATION_DIFF, 4);
 
         mOriginDelay = intent.getIntExtra("origin_timeout", 0);
         waitingStart = mOriginDelay > 0;
 
         SourceData.totalDistance = mTotalDistance;
-        SourceData.isClosedRoute = intent.getBooleanExtra(SpoofingPlaceInfo.CLOSED_ROUTE_MOTION_INVERT, false);
+        SourceData.isClosedRoute = intent.getBooleanExtra(
+                SpoofingPlaceInfo.CLOSED_ROUTE_MOTION_INVERT, false);
 
         cast();
+        if (mSpeed <= 8) mBrakeAtTurning = false;
 
-        if (mSpeed <= 8) {
-            mBrakeAtTurning = false;
-        }
-
-        /* cast */
         Geometry.UnitCast casted = castAllUnits(mSpeed, mSpeedDiff);
-        mSpeed = casted.speed;
+        mSpeed     = casted.speed;
         mSpeedDiff = casted.speedDiff;
 
         mUpdateUI = new Intent();
         mUpdateUI.setAction(MapsPresenter.UPDATE_UI_ACTION);
         mUpdateUI.putExtra(UI_TOTAL_DISTANCE, mTotalDistance);
 
-
         return new ISpooferService.Stub() {
+
             @Override
             public void attachRoutes(List<MultipleRoutesInfo> routes) throws RemoteException {
-                // combine all segments and start route spoofing
-
                 setRoute(routes, false);
-                mCurrentStep = new GeoPoint(mSpoofRoute.get(0).getLatitude(), mSpoofRoute.get(0).getLongitude(), mSpoofRoute.get(0).getAltitude());
-
-                // ongoing point segmentation
-                // int arrayRunSpeed = mRandomizer.getArrayRunSpeed(mSpeed, mUpdatesDelay);
-                // int index = 3 * arrayRunSpeed;
-
-                // if (index <= mSpoofRoute)
-
+                mCurrentStep = new GeoPoint(
+                        mSpoofRoute.get(0).getLatitude(),
+                        mSpoofRoute.get(0).getLongitude(),
+                        mSpoofRoute.get(0).getAltitude());
 
                 if (mainRouteThread.getState() == Thread.State.NEW) {
                     mainRouteThread.start();
@@ -193,62 +158,22 @@ public class RouteSpooferService extends Service {
                 }
 
                 if (waitingStart)
-                    new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                        waitingStart = false;
-                    }, mOriginDelay);
-
+                    new Handler(Looper.getMainLooper()).postDelayed(
+                            () -> waitingStart = false, mOriginDelay);
             }
 
             @Override
             public void setPause(boolean pause) throws RemoteException {
+                if (!pause && isPaused) mainRouteRunnable.resetDrift();
                 isPaused = pause;
             }
 
             @Override
-            public boolean isPaused() throws RemoteException {
-                return isPaused;
-            }
+            public boolean isPaused() throws RemoteException { return isPaused; }
 
             @Override
-            public List<MultipleRoutesInfo> getRoutes() throws RemoteException {
-                return mRoutes;
-            }
+            public List<MultipleRoutesInfo> getRoutes() throws RemoteException { return mRoutes; }
         };
-    }
-
-    private void setRoute(List<MultipleRoutesInfo> routes, boolean closedRoute) {
-        mRoutes = (ArrayList<MultipleRoutesInfo>) routes;
-
-        try {
-            mSlices = new ArrayList[mRoutes.size()];
-            mSlicesSpeeds = new ArrayList[mRoutes.size()];
-            mRouteSlice = 0;
-
-            for (int i = 0; i < mRoutes.size(); i++) {
-                mSlices[i] = new ArrayList<>();
-                MultipleRoutesInfo routeInfo = mRoutes.get(i);
-                List<GeoPoint> points = routeInfo.getRoute();
-
-                if (routeInfo.getFollowSpeedLimits() && routeInfo.getSpeedLimits() != null) {
-                    mSlicesSpeeds[i] = new ArrayList<>();
-                    RouteManager.startMotion(points, routeInfo.getSpeedLimits(), mSlices[i], mSlicesSpeeds[i], routeInfo.getSmoothTurns());
-                } else {
-                    RouteManager.startMotion(points, null, mSlices[i], null, routeInfo.getSmoothTurns());
-                }
-
-                if (isClosedRoute) {
-                    isClosedRoute = false;
-                    Collections.reverse(mSlices[i]);
-                    if (mSlicesSpeeds[i] != null) {
-                        Collections.reverse(mSlicesSpeeds[i]);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        mSpoofRoute = mSlices[mRouteSlice];
-        mSpoofRouteSpeeds = mSlicesSpeeds != null && mSlicesSpeeds.length > mRouteSlice ? mSlicesSpeeds[mRouteSlice] : null;
     }
 
     @Override
@@ -257,40 +182,105 @@ public class RouteSpooferService extends Service {
         mainRouteThread.interrupt();
         if (mHandler != null && mainRouteRunnable != null)
             mHandler.removeCallbacks(mainRouteRunnable);
-
         stopForeground(true);
         MockLocProvider.removeProviders();
     }
 
-    public static class FakeRouteInfo {
-        boolean arrived;
-        float speed;
-        double altitude;
+    private Geometry.UnitCast castAllUnits(int speed, int speedDiff) {
+        Geometry.UnitCast casted = new Geometry.UnitCast();
+        if (mDefaultUnit == AppPreferences.METERS) {
+            speed = (int) Geometry.Speed.metersToKilometers(speed);
+            speedDiff = (int) Geometry.Speed.metersToKilometers(speedDiff);
+        } else if (mDefaultUnit == AppPreferences.MILES) {
+            speed = (int) Geometry.Speed.milesToKilometers(speed);
+            speedDiff = (int) Geometry.Speed.milesToKilometers(speedDiff);
+        }
+        casted.speed = speed; casted.speedDiff = speedDiff;
+        return casted;
     }
 
+    private void cast() {
+        if (mDefaultUnit == AppPreferences.KILOMETERS)
+            mTotalDistance = Geometry.Distance.metersToKilometers(mTotalDistance);
+        if (mDefaultUnit == AppPreferences.MILES)
+            mTotalDistance = Geometry.Distance.metersToMiles(mTotalDistance);
+    }
 
-    Runnable mainRouteRunnable = new Runnable() {
-        private int arrayRunIndex = 0;
-        private int arrayRunSpeed;
-        private int brakeSpeed;
+    private void setRoute(List<MultipleRoutesInfo> routes, boolean closedRoute) {
+        mRoutes = (ArrayList<MultipleRoutesInfo>) routes;
+        try {
+            mSlices = new ArrayList[mRoutes.size()];
+            mSlicesSpeeds = new ArrayList[mRoutes.size()];
+            mRouteSlice = 0;
+            for (int i = 0; i < mRoutes.size(); i++) {
+                mSlices[i] = new ArrayList<>();
+                MultipleRoutesInfo routeInfo = mRoutes.get(i);
+                List<GeoPoint> points = routeInfo.getRoute();
+                if (routeInfo.getFollowSpeedLimits() && routeInfo.getSpeedLimits() != null) {
+                    mSlicesSpeeds[i] = new ArrayList<>();
+                    RouteManager.startMotion(points, routeInfo.getSpeedLimits(), mSlices[i], mSlicesSpeeds[i], routeInfo.getSmoothTurns());
+                } else {
+                    RouteManager.startMotion(points, null, mSlices[i], null, routeInfo.getSmoothTurns());
+                }
+                if (isClosedRoute) {
+                    isClosedRoute = false;
+                    Collections.reverse(mSlices[i]);
+                    if (mSlicesSpeeds[i] != null) Collections.reverse(mSlicesSpeeds[i]);
+                }
+            }
+        } catch (Exception e) { e.printStackTrace(); }
+        mSpoofRoute = mSlices[mRouteSlice];
+        mSpoofRouteSpeeds = (mSlicesSpeeds != null && mSlicesSpeeds.length > mRouteSlice)
+                ? mSlicesSpeeds[mRouteSlice] : null;
+    }
+
+    private void updateUI(float speed, double distance) {
+        mUpdateUI.putExtra(UI_SPEED_KEY, speed);
+        mUpdateUI.putExtra(UI_PASSED_DISTANCE, distance);
+        sendBroadcast(mUpdateUI);
+    }
+
+    public static class FakeRouteInfo {
+        boolean arrived;
+        float   speed;
+        double  altitude;
+    }
+
+    MainRouteRunnable mainRouteRunnable = new MainRouteRunnable();
+    Thread mainRouteThread = new Thread(mainRouteRunnable);
+
+    class MainRouteRunnable implements Runnable {
+
+        private int     arrayRunIndex = 0;
+        private int     arrayRunSpeed;
+        private int     brakeSpeed;
         private boolean isNeedBrake;
+
+        // ── GPS-Positions-Drift ───────────────────────────────────
+        private double driftLat  = 0.0;
+        private double driftLon  = 0.0;
+        private double anchorLat = Double.NaN;
+        private double anchorLon = Double.NaN;
+
+        private static final double MAX_DRIFT_METERS = 5.0;
+        private static final double METERS_TO_DEG    = 1.0 / 111320.0;
+        private static final double MAX_DRIFT_DEG    = MAX_DRIFT_METERS * METERS_TO_DEG;
+        private static final double DRIFT_STEP_DEG   = 0.5 * METERS_TO_DEG;
 
         @Override
         public void run() {
-            if (mSpoofRoute == null || mSpoofRoute.isEmpty())
-                return;
+            if (mSpoofRoute == null || mSpoofRoute.isEmpty()) return;
 
             float rSpeed;
             if (mSpoofRouteSpeeds != null && arrayRunIndex >= 0 && arrayRunIndex < mSpoofRouteSpeeds.size()) {
                 rSpeed = mSpoofRouteSpeeds.get(arrayRunIndex);
             } else {
                 rSpeed = mRandomizer.getRandomSpeed(mSpeed, mSpeedDiff);
-                if (mSpeedDiff != 0)
-                    rSpeed += Math.random() * mSpeedDiff;
+                if (mSpeedDiff != 0) rSpeed += Math.random() * mSpeedDiff;
             }
 
             float rElevation = (float) mCurrentStep.getAltitude();
-            float rAccuracy = mRandomizer.getAccuracy(mAccuracy);
+            float rAccuracy  = mRandomizer.getAccuracy(mAccuracy);
             if (isNeedBrake) rSpeed = brakeSpeed;
 
             arrayRunSpeed = mRandomizer.getArrayRunSpeed((int) rSpeed, mUpdatesDelay);
@@ -300,7 +290,7 @@ public class RouteSpooferService extends Service {
                 arrayRunIndex = mSpoofRoute.size() - 1;
                 if (mRouteSlice < mSlices.length - 1) {
                     replaceRouteSlice();
-                    mHandler.postDelayed(this, mUpdatesDelay);
+                    postDelayedJittered();
                     return;
                 }
             }
@@ -308,75 +298,79 @@ public class RouteSpooferService extends Service {
             FakeRouteInfo info = onMockArrived(rSpeed, rAccuracy);
             rSpeed = info.speed;
 
-            //if (!info.arrived) {
-                mCurrentStep.setLatitude(mSpoofRoute.get(arrayRunIndex).getLatitude());
-                mCurrentStep.setLongitude(mSpoofRoute.get(arrayRunIndex).getLongitude());
-                mCurrentStep.setAltitude(mSpoofRoute.get(arrayRunIndex).getAltitude());
-            //}
+            mCurrentStep.setLatitude(mSpoofRoute.get(arrayRunIndex).getLatitude());
+            mCurrentStep.setLongitude(mSpoofRoute.get(arrayRunIndex).getLongitude());
+            mCurrentStep.setAltitude(mSpoofRoute.get(arrayRunIndex).getAltitude());
 
             int nextPosBearing = arrayRunIndex + 2;
             if (nextPosBearing >= mSpoofRoute.size() - 1) nextPosBearing = arrayRunIndex;
-            float bearing = (float) Geometry.getAzimuth(mCurrentStep.getLatitude(), mCurrentStep.getLongitude(), mSpoofRoute.get(nextPosBearing).getLatitude(),
+            float bearing = (float) Geometry.getAzimuth(
+                    mCurrentStep.getLatitude(), mCurrentStep.getLongitude(),
+                    mSpoofRoute.get(nextPosBearing).getLatitude(),
                     mSpoofRoute.get(nextPosBearing).getLongitude());
-            Log.d("Randomize", "bearing: " + bearing);
 
             if (info.arrived) {
-                float coefficient = (float) ThreadLocalRandom.current().nextDouble(-5, 5);
-                bearing = mBearing;
-                bearing += coefficient;
+                bearing    = mBearing + (float) ThreadLocalRandom.current().nextDouble(-5, 5);
                 rElevation = (float) info.altitude;
             }
 
             makeBrakeAtTurning();
-            if (!info.arrived){
+            if (!info.arrived) {
                 addTrafficSideOffset(nextPosBearing);
                 rElevation += ThreadLocalRandom.current().nextDouble(-0.5, 0.5);
             }
-            setMockLocation(rSpeed == -1 ? 0 : rSpeed, rAccuracy, bearing + (float) Math.random(), rElevation);
+
+            setMockLocation(rSpeed == -1 ? 0 : rSpeed, rAccuracy,
+                    bearing + (float) Math.random(), rElevation);
 
             if (rSpeed == -1 && isClosedRoute) {
                 setRoute(mRoutes, isClosedRoute);
-
                 MultipleRoutesInfo routeInfo = mRoutes.get(0);
-                mSpeed = routeInfo.getSpeed();
-                mSpeedDiff = routeInfo.getSpeedDiff();
-
-                mElevation = routeInfo.getElevation();
-                mElevationDiff = routeInfo.getElevationDiff();
-
-                mPassedDistance = 0;
-                arrayRunSpeed = 0;
-                arrayRunIndex = 0;
-                isNeedBrake = false;
-
-                mHandler.postDelayed(this, mUpdatesDelay);
+                mSpeed = routeInfo.getSpeed(); mSpeedDiff = routeInfo.getSpeedDiff();
+                mElevation = routeInfo.getElevation(); mElevationDiff = routeInfo.getElevationDiff();
+                mPassedDistance = 0; arrayRunSpeed = 0; arrayRunIndex = 0; isNeedBrake = false;
+                postDelayedJittered();
                 return;
             }
 
-            mHandler.postDelayed(this, mUpdatesDelay);
+            postDelayedJittered();
         }
+
+        /** postDelayed mit ±mUpdatesDrift Jitter */
+        private void postDelayedJittered() {
+            long lo = Math.max(50, mUpdatesDelay - mUpdatesDrift);
+            long hi = mUpdatesDelay + mUpdatesDrift;
+            mHandler.postDelayed(this, ThreadLocalRandom.current().nextLong(lo, hi + 1));
+        }
+
+        // ── Drift ────────────────────────────────────────────────
+
+        private GeoPoint applyStationaryDrift(double currentLat, double currentLon) {
+            if (Double.isNaN(anchorLat)) { anchorLat = currentLat; anchorLon = currentLon; }
+            driftLat += ThreadLocalRandom.current().nextDouble(-DRIFT_STEP_DEG, DRIFT_STEP_DEG);
+            driftLon += ThreadLocalRandom.current().nextDouble(-DRIFT_STEP_DEG, DRIFT_STEP_DEG);
+            double dist = Math.sqrt(driftLat * driftLat + driftLon * driftLon);
+            if (dist > MAX_DRIFT_DEG) { driftLat -= driftLat * 0.15; driftLon -= driftLon * 0.15; }
+            return new GeoPoint(anchorLat + driftLat, anchorLon + driftLon);
+        }
+
+        public void resetDrift() {
+            anchorLat = Double.NaN; anchorLon = Double.NaN;
+            driftLat  = 0.0;       driftLon  = 0.0;
+        }
+
+        // ── Route-Logik ──────────────────────────────────────────
 
         public void replaceRouteSlice() {
             mRouteSlice++;
             mSpoofRoute = mSlices[mRouteSlice];
-            mSpoofRouteSpeeds = mSlicesSpeeds != null && mSlicesSpeeds.length > mRouteSlice ? mSlicesSpeeds[mRouteSlice] : null;
-
+            mSpoofRouteSpeeds = (mSlicesSpeeds != null && mSlicesSpeeds.length > mRouteSlice)
+                    ? mSlicesSpeeds[mRouteSlice] : null;
             MultipleRoutesInfo routeInfo = mRoutes.get(mRouteSlice);
-            mSpeed = routeInfo.getSpeed();
-            mSpeedDiff = routeInfo.getSpeedDiff();
-            Log.d("MultipleRoutesInfo", "mSpeed: " + mSpeed + " mSpeedDiff: " + mSpeedDiff);
-
-            mElevation = routeInfo.getElevation();
-            mElevationDiff = routeInfo.getElevationDiff();
-            Log.d("MultipleRoutesInfo", "mElevation: " + mElevation + " mElevationDiff: " + mElevationDiff);
-
-            Log.d("MultipleRoutesInfo", "Sleeping (" + routeInfo.getStartingPauseTime() + " ms)");
-            SystemClock.sleep(routeInfo.getStartingPauseTime()); // Parking at the start
-
-            arrayRunSpeed = 0;
-            arrayRunIndex = 0;
-            isNeedBrake = false;
-            Log.d("MultipleRoutesInfo", "Route slice changed");
+            mSpeed = routeInfo.getSpeed(); mSpeedDiff = routeInfo.getSpeedDiff();
+            mElevation = routeInfo.getElevation(); mElevationDiff = routeInfo.getElevationDiff();
+            SystemClock.sleep(routeInfo.getStartingPauseTime());
+            arrayRunSpeed = 0; arrayRunIndex = 0; isNeedBrake = false;
         }
 
         private void setMockLocation(float speed, float accuracy, float bearing, float elevation) {
@@ -390,43 +384,38 @@ public class RouteSpooferService extends Service {
             }
         }
 
-        // Returns speed
         private FakeRouteInfo onMockArrived(float speed, float accuracy) {
             FakeRouteInfo routeInfo = new FakeRouteInfo();
             if (arrayRunIndex >= mSpoofRoute.size() - 1) {
-                // Arrived
                 routeInfo.arrived = true;
-                //if (Math.random() < 0.8)
-                    speed = (float) ThreadLocalRandom.current().nextDouble(0, 0.3);
-                //else
-                //    speed = 0;
+                speed = (float) ThreadLocalRandom.current().nextDouble(0, 0.3);
                 updateUI(speed, mTotalDistance);
-
-                if (SourceData.isClosedRoute) {
-                    isClosedRoute = !isClosedRoute;
-                    routeInfo.speed = -1;
-                    return routeInfo;
-                }
-
-                double altitude = mCurrentStep.getAltitude();
-                altitude += ThreadLocalRandom.current().nextDouble(-1, +1);
-
-                if (mDeviation)
-                    deviate(accuracy);
-                routeInfo.speed = speed;
-                routeInfo.altitude = altitude;
+                if (SourceData.isClosedRoute) { isClosedRoute = !isClosedRoute; routeInfo.speed = -1; return routeInfo; }
+                double altitude = mCurrentStep.getAltitude() + ThreadLocalRandom.current().nextDouble(-1, +1);
+                GeoPoint drifted = applyStationaryDrift(mCurrentStep.getLatitude(), mCurrentStep.getLongitude());
+                mCurrentStep.setLatitude(drifted.getLatitude());
+                mCurrentStep.setLongitude(drifted.getLongitude());
+                accuracy += (float) ThreadLocalRandom.current().nextDouble(0, 3.0);
+                routeInfo.speed = speed; routeInfo.altitude = altitude;
                 return routeInfo;
             } else {
                 if (!isPaused && !waitingStart) {
-                    mPassedDistance += Geometry.distance(mSpoofRoute.get(arrayRunIndex - arrayRunSpeed).getLatitude(), mSpoofRoute.get(arrayRunIndex - arrayRunSpeed).getLongitude(),
-                            mSpoofRoute.get(arrayRunIndex).getLatitude(), mSpoofRoute.get(arrayRunIndex).getLongitude(), mDefaultUnit);
+                    mPassedDistance += Geometry.distance(
+                            mSpoofRoute.get(arrayRunIndex - arrayRunSpeed).getLatitude(),
+                            mSpoofRoute.get(arrayRunIndex - arrayRunSpeed).getLongitude(),
+                            mSpoofRoute.get(arrayRunIndex).getLatitude(),
+                            mSpoofRoute.get(arrayRunIndex).getLongitude(), mDefaultUnit);
                     updateUI(speed, mPassedDistance);
+                    resetDrift();
                 } else {
+                    GeoPoint drifted = applyStationaryDrift(mCurrentStep.getLatitude(), mCurrentStep.getLongitude());
+                    mCurrentStep.setLatitude(drifted.getLatitude());
+                    mCurrentStep.setLongitude(drifted.getLongitude());
+                    accuracy += (float) ThreadLocalRandom.current().nextDouble(0, 2.0);
                     updateUI(0, mPassedDistance);
                 }
             }
-            routeInfo.speed = speed;
-            routeInfo.arrived = false;
+            routeInfo.speed = speed; routeInfo.arrived = false;
             return routeInfo;
         }
 
@@ -437,106 +426,31 @@ public class RouteSpooferService extends Service {
         }
 
         private void addTrafficSideOffset(int nextPosBearing) {
-            double latitude = mCurrentStep.getLatitude();
-            double longitude = mCurrentStep.getLongitude();
-            // longitude offset
-
+            double latitude = mCurrentStep.getLatitude(), longitude = mCurrentStep.getLongitude();
             if (mTrafficSide == AppPreferences.RIGHT_HAND_TRAFFIC) {
-                double distance = Geometry.distance(latitude, longitude, mSpoofRoute.get(nextPosBearing).getLatitude(),
-                        mSpoofRoute.get(nextPosBearing).getLongitude(), AppPreferences.KILOMETERS);
-                double bearing = getNewAngle(latitude, longitude, mSpoofRoute.get(nextPosBearing).getLatitude(),
-                        mSpoofRoute.get(nextPosBearing).getLongitude());
-
-                Log.d("BlackBoxCure", "bearing: " + bearing + "\ndistance: " + distance);
-
+                double distance = Geometry.distance(latitude, longitude, mSpoofRoute.get(nextPosBearing).getLatitude(), mSpoofRoute.get(nextPosBearing).getLongitude(), AppPreferences.KILOMETERS);
+                double bearing  = getNewAngle(latitude, longitude, mSpoofRoute.get(nextPosBearing).getLatitude(), mSpoofRoute.get(nextPosBearing).getLongitude());
                 GeoPoint geo = bearingDistance(latitude, longitude, distance, bearing + 25);
-                mCurrentStep.setLatitude(geo.getLatitude());
-                mCurrentStep.setLongitude(geo.getLongitude());
+                mCurrentStep.setLatitude(geo.getLatitude()); mCurrentStep.setLongitude(geo.getLongitude());
             } else if (mTrafficSide == AppPreferences.LEFT_HAND_TRAFFIC) {
-                double distance = Geometry.distance(latitude, longitude, mSpoofRoute.get(nextPosBearing).getLatitude(),
-                        mSpoofRoute.get(nextPosBearing).getLongitude(), AppPreferences.KILOMETERS);
-                double bearing = getNewAngle(latitude, longitude, mSpoofRoute.get(nextPosBearing).getLatitude(),
-                        mSpoofRoute.get(nextPosBearing).getLongitude());
-
-                Log.d("BlackBoxCure", "bearing: " + bearing + "\ndistance: " + distance);
-
+                double distance = Geometry.distance(latitude, longitude, mSpoofRoute.get(nextPosBearing).getLatitude(), mSpoofRoute.get(nextPosBearing).getLongitude(), AppPreferences.KILOMETERS);
+                double bearing  = getNewAngle(latitude, longitude, mSpoofRoute.get(nextPosBearing).getLatitude(), mSpoofRoute.get(nextPosBearing).getLongitude());
                 GeoPoint geo = bearingDistance(latitude, longitude, distance, bearing - 25);
-                mCurrentStep.setLatitude(geo.getLatitude());
-                mCurrentStep.setLongitude(geo.getLongitude());
+                mCurrentStep.setLatitude(geo.getLatitude()); mCurrentStep.setLongitude(geo.getLongitude());
             }
-
         }
 
-        public double getNewAngle(double startLat, double startLong, double destLat, double destLong) {
+        private void makeBrakeAtTurning() { if (!mBrakeAtTurning) return; }
 
-            double dLon = (destLong - startLong);
-            double y = Math.sin(dLon) * Math.cos(destLat);
-            double x = Math.cos(startLat) * Math.sin(destLat) - Math.sin(startLat) * Math.cos(destLat) * Math.cos(dLon);
-
-            return Math.toDegrees((Math.atan2(y, x)));
+        private double getNewAngle(double lat1, double lon1, double lat2, double lon2) {
+            return Math.toDegrees(Math.atan2(lon2 - lon1, lat2 - lat1));
         }
 
-
-        private GeoPoint bearingDistance(double lat, double lon, double radius, double bearing) {
-            double lat1Rads = toRad(lat);
-            double lon1Rads = toRad(lon);
-            double R_KM = 6371; // radius in KM
-            double d = radius / R_KM; //angular distance on earth's surface
-
-            double bearingRads = toRad(bearing);
-            double lat2Rads = Math.asin(Math.sin(lat1Rads) * Math.cos(d) + Math.cos(lat1Rads) * Math.sin(d) * Math.cos(bearingRads));
-
-            double lon2Rads = lon1Rads + Math.atan2(
-                    Math.sin(bearingRads) * Math.sin(d) * Math.cos(lat1Rads),
-                    Math.cos(d) - Math.sin(lat1Rads) * Math.sin(lat2Rads)
-            );
-
-            return new GeoPoint(toDeg(lat2Rads), toDeg(lon2Rads));
+        private GeoPoint bearingDistance(double lat, double lon, double dist, double bearing) {
+            double R = 6371.0, lat1 = Math.toRadians(lat), lon1 = Math.toRadians(lon), brng = Math.toRadians(bearing);
+            double lat2 = Math.asin(Math.sin(lat1) * Math.cos(dist / R) + Math.cos(lat1) * Math.sin(dist / R) * Math.cos(brng));
+            double lon2 = lon1 + Math.atan2(Math.sin(brng) * Math.sin(dist / R) * Math.cos(lat1), Math.cos(dist / R) - Math.sin(lat1) * Math.sin(lat2));
+            return new GeoPoint(Math.toDegrees(lat2), Math.toDegrees(lon2));
         }
-
-        double toRad(double degrees) {
-            return degrees * Math.PI / 180;
-        }
-
-        double toDeg(double radians) {
-            return radians * 180 / Math.PI;
-        }
-
-
-        private void updateUI(float speed, double passedDistance) {
-
-            if (mDefaultUnit == AppPreferences.METERS) {
-                speed = (int) Geometry.Speed.kilometersToMeters(speed);
-                passedDistance = (int) Geometry.Speed.kilometersToMeters(passedDistance);
-            } else if (mDefaultUnit == AppPreferences.MILES) {
-                speed = (int) Geometry.Speed.kilometersToMiles(speed);
-                passedDistance = (int) Geometry.Speed.kilometersToMiles(passedDistance);
-            }
-
-            mUpdateUI.putExtra(UI_PASSED_DISTANCE, passedDistance);
-            mUpdateUI.putExtra(UI_SPEED_KEY, (int) speed);
-
-            sendBroadcast(mUpdateUI);
-        }
-
-        private void makeBrakeAtTurning() {
-            if (mBrakeAtTurning) {
-                int nextPosAngle = arrayRunIndex + (arrayRunSpeed * 2);
-                int nextPosAngle2 = arrayRunIndex + 1;
-                if (nextPosAngle >= mSpoofRoute.size() - 1) nextPosAngle = mSpoofRoute.size() - 1;
-                if (nextPosAngle2 >= mSpoofRoute.size() - 1) nextPosAngle2 = mSpoofRoute.size() - 1;
-
-                double angle = Geometry.getAngle(mCurrentStep.getLatitude(), mCurrentStep.getLongitude(),
-                        mSpoofRoute.get(nextPosAngle).getLatitude(), mSpoofRoute.get(nextPosAngle).getLongitude(),
-                        mSpoofRoute.get(nextPosAngle2).getLatitude(), mSpoofRoute.get(nextPosAngle2).getLongitude());
-                double coefficient = angle / 180;
-                brakeSpeed = (int) (mSpeed * Math.pow(coefficient, 2));
-                isNeedBrake = true;
-            }
-
-        }
-
-    };
-
-    Thread mainRouteThread = new Thread(mainRouteRunnable);
+    }
 }

@@ -186,5 +186,8 @@
     <string name="delay_at_the_last_point">Delay at the last point:</string>
     <string name="date_is_inaccurate_summary">You phone date is inaccurate!\nAdjust your clock and try again.</string>
     <string name="our_telegram">Our Telegram</string>
+    //neu drift
+    <string name="gps_updates_drift">GPS Updates drift</string>
+    <string name="enter_updates_drift_value">Random ±drift per update interval in milliseconds (e.g. 150)</string>
 
 </resources>

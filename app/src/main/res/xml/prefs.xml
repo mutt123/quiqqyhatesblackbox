@@ -19,15 +19,6 @@
             android:summary="@string/auto_altitude_summary"
             android:title="@string/auto_altitude_detection" />
     </PreferenceCategory>
-    <!--<PreferenceCategory android:title="@string/routing_api_preferences_title">
-        <EditTextPreference
-            android:key="openrouteservice_api_key"
-            android:icon="@drawable/ic_route"
-            android:title="@string/openrouteservice_api_key_title"
-            android:summary="@string/openrouteservice_api_key_summary"
-            android:dialogMessage="@string/openrouteservice_api_key_dialog"/>
-    </PreferenceCategory> -->
-
     <PreferenceCategory android:title="@string/measurement_title">
 
         <rikka.preference.SimpleMenuPreference
@@ -61,13 +52,22 @@
             android:key="accuracy_settings"
             android:title="@string/settings_of_accuracy"
             android:summary="10 m."/>
+
         <EditTextPreference
             android:key="gps_updates_delay"
-            android:inputType="numberDecimal"
-            android:defaultValue="1"
+            android:inputType="number"
+            android:defaultValue="1000"
             android:icon="@drawable/ic_near_me"
             android:title="@string/gps_updates_delay"
-            android:summary="1 sec."/>
+            android:summary="1000 ms."/>
+
+        <EditTextPreference
+            android:key="gps_updates_drift"
+            android:inputType="number"
+            android:defaultValue="150"
+            android:icon="@drawable/ic_near_me"
+            android:title="@string/gps_updates_drift"
+            android:summary="150 ms."/>
 
     </PreferenceCategory>
 
