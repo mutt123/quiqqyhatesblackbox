@@ -68,12 +68,22 @@
         android:inputType="text"
         android:textSize="16sp" />
 
+    <!-- Container für dynamische Zwischenstopp-Zeilen (wird per Code befüllt) -->
+    <LinearLayout
+        android:id="@+id/waypoints_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/origin"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"/>
+
     <EditText
         android:id="@+id/destination"
         style="@style/uisearchview"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@id/origin"
+        android:layout_below="@+id/waypoints_container"
         android:layout_marginStart="20dp"
         android:layout_marginTop="11dp"
         android:layout_marginEnd="20dp"
@@ -83,11 +93,27 @@
         android:inputType="text"
         android:textSize="16sp" />
 
+    <!-- „+ Zwischenstopp" Button -->
+    <EditText
+        android:id="@+id/add_waypoint_btn"
+        style="@style/uisearchview"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/destination"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="11dp"
+        android:layout_marginEnd="20dp"
+        android:hint="@string/Zwischenstopp"
+        android:imeOptions="actionSearch"
+        android:inputType="text"
+        android:textSize="16sp" />
+
+
     <RelativeLayout
         android:id="@+id/select_on_map"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@id/destination"
+        android:layout_below="@id/add_waypoint_btn"
         android:layout_marginStart="20dp"
         android:layout_marginTop="10dp"
         android:layout_marginEnd="20dp"

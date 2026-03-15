@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Quiqqy Hates Blackboxes</string>
+    <string name="settings">Einstellungen</string>
+    <string name="continue_text">Weiter</string>
+    <string name="permissions">Berechtigungen</string>
+    <string name="need_permissions">Bitte erteile folgende Berechtigungen, um fortzufahren:</string>
+    <string name="error_get_currentloc">Aktueller Standort konnte nicht ermittelt werden.</string>
+    <string name="mock_location_permission">Gefälschte Standorte</string>
+    <string name="open_developer_settings">Gefälschte Standorte</string>
+    <string name="unknown_error">Unbekannter Fehler</string>
+    <string name="unknown">Unbekannt</string>
+    <string name="search_by_coordinates">Suche nach Koordinaten</string>
+    <string name="Address">Adresse:</string>
+    <string name="enter_value">Bitte einen Wert eingeben!</string>
+    <string name="settings_of_accuracy">Genauigkeit</string>
+    <string name="enter_accuracy_value">Die Genauigkeit wird variieren</string>
+    <string name="enter_updates_time_value">Update-Intervall in Millisekunden (min. 100)</string>
+    <string name="accuracy_settings">Genauigkeit</string>
+    <string name="gps_updates_delay_name">Update-Intervall</string>
+    <string name="gps_updates_delay">GPS-Update-Intervall</string>
+    <string name="gps_updates_drift">GPS-Update-Schwankung</string>
+    <string name="route_settings">Route</string>
+    <string name="cancel">Abbrechen</string>
+    <string name="mock_locations">Gefälschte Standorte</string>
+    <string name="where_to">Wohin?</string>
+    <string name="from">Von: %1$s</string>
+    <string name="copyright">© OpenStreetMap-Mitwirkende</string>
+    <string name="wikimedia_contributors">| Wikimedia Maps</string>
+    <string name="origin">Von wo?</string>
+    <string name="destination">Wohin?</string>
+    <string name="mock_loc_is_disabled">Gefälschte Standorte sind in den Einstellungen deaktiviert.</string>
+    <string name="select_on_map">Auf Karte auswählen</string>
+    <string name="search_name">Suche</string>
+    <string name="about_of_the_app">Über die App</string>
+    <string name="brake_at_turning">Bremsen vor Kurven</string>
+    <string name="give_mock_lock_permission">Zum Fälschen des Standorts bitte die Berechtigung „Gefälschte Standorte" in den Entwickleroptionen erteilen.</string>
+    <string name="find_and_select_app">„Gefälschte Standorte" finden und Quiqqy Hates Blackboxes auswählen.</string>
+    <string name="speed">Geschwindigkeit</string>
+    <string name="difference">Abweichung</string>
+    <string name="version">Version</string>
+    <string name="no_internet">Keine Internetverbindung</string>
+    <string name="building_route">Bitte warten, Route wird berechnet…</string>
+    <string name="failed_to_define_address">Adresse konnte nicht ermittelt werden.</string>
+    <string name="kiloabbr">km/h</string>
+    <string name="milesabbr">mph</string>
+    <string name="meterabbr">m/s</string>
+    <string name="location">Standort</string>
+    <string name="location_perm_description">Zur Bestimmung deines Standorts</string>
+
+    <string-array name="unitList">
+        <item>Meter</item>
+        <item>Kilometer</item>
+        <item>Meilen</item>
+    </string-array>
+    <string-array name="map_tiles">
+        <item>Standard (OSM)</item>
+        <item>WikiMedia</item>
+    </string-array>
+    <string-array name="map_tiles_value">
+        <item>0</item>
+        <item>1</item>
+    </string-array>
+    <string-array name="trafficSide">
+        <item>Rechtsverkehr</item>
+        <item>Linksverkehr</item>
+    </string-array>
+    <string-array name="unit_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+    <string-array name="traffic_values">
+        <item>0</item>
+        <item>1</item>
+    </string-array>
+
+    <string name="where_from">Von wo?</string>
+    <string name="information">Information</string>
+    <string name="please_wait">Bitte warten…</string>
+    <string name="error_grant_su_permission">Fehler beim Einrichten der Root-Berechtigungen.</string>
+    <string name="okay">OK</string>
+    <string name="confirmation">Bestätigung</string>
+    <string name="go_to_confirm_text">Standort-Spoofing wirklich starten?</string>
+    <string name="open_video">Video ansehen</string>
+    <string name="open_settings">Einstellungen öffnen</string>
+    <string name="back">Zurück</string>
+    <string name="developer_options_disabled">Entwickleroptionen sind deaktiviert!</string>
+    <string name="developer_options_instruction">1) Einstellungen öffnen<![CDATA[<br>]]>2) „Über das Telefon" aufrufen<![CDATA[<br>]]>3) „Build-Nummer" 7-mal antippen<![CDATA[<br>]]>4) Zurück zur Hauptübersicht → „Entwickleroptionen" öffnen<![CDATA[<br>]]>5) „Scheinstandorte" oder „Standorte simulieren" suchen<![CDATA[<br>]]>6) Antippen und Quiqqy Hates Blackboxes auswählen.</string>
+    <string name="developer_options_instruction_miui">1) Einstellungen öffnen<![CDATA[<br>]]>2) „Über das Telefon" aufrufen<![CDATA[<br>]]>3) „Build-Nummer" 7-mal antippen<![CDATA[<br>]]>4) Zurück zur Hauptübersicht → „Entwickleroptionen" öffnen<![CDATA[<br>]]>5) „Scheinstandorte" suchen<![CDATA[<br>]]>6) Antippen und Quiqqy Hates Blackboxes auswählen.</string>
+    <string name="miui_developer_instruction_link">https://www.youtube.com/watch?v=bjntq8-72hw</string>
+    <string name="aosp_developer_instruction_link">https://www.youtube.com/watch?v=uMjyb3wf1Lw</string>
+    <string name="oneui_developer_instruction_link">https://www.youtube.com/watch?v=gKLB_A8HBNI</string>
+    <string name="error_dest_loc">Zieladresse konnte nicht abgerufen werden</string>
+    <string name="error">Fehler</string>
+    <string name="stop">Stopp</string>
+    <string name="search_locked_description">Eine Route ist aktiv oder der statische Modus ist eingeschaltet. Bitte erst stoppen und dann neu starten.</string>
+    <string name="you_dont_select_dest">Kein Ziel ausgewählt</string>
+    <string name="please_select_dest">Bitte Ziel angeben</string>
+    <string name="menu">Menü</string>
+    <string name="keep_center_of_current_location">Karte auf aktuellen Standort zentrieren</string>
+    <string name="origin_text">Von: </string>
+    <string name="where_to_text">Nach: </string>
+    <string name="updates">Updates</string>
+    <string name="push_notification_name">App-Neuigkeiten</string>
+    <string name="mocking_notification_control">Statussteuerung</string>
+    <string name="notify_status_description">Läuft im Hintergrund</string>
+    <string name="pause">Pause</string>
+    <string name="settings_route_active_error">Bitte zuerst die aktive Route beenden</string>
+    <string name="doubletap_to_exit">Nochmal ZURÜCK drücken zum Beenden</string>
+    <string name="dont_enable_ml">Scheinstandorte nicht aktivieren</string>
+    <string name="mock_location_activated">Scheinstandort aktiviert!</string>
+    <string name="warning">Warnung</string>
+    <string name="difference_error">Die Abweichung (±) darf nicht größer oder gleich der Geschwindigkeit sein</string>
+    <string name="joystick">Joystick</string>
+    <string name="draw_overlays_permission">Einblendungen</string>
+    <string name="draw_overlays_summary">Für den Joystick ist die Berechtigung „Über anderen Apps einblenden" erforderlich. Bitte im geöffneten Fenster nach Klick auf „Erteilen" erlauben.</string>
+    <string name="grant">Erteilen</string>
+    <string name="joystick_mode">Joystick-Modus</string>
+    <string name="from_current_loc">Von meinem aktuellen Standort</string>
+    <string name="where_from_spoof">Von wo soll das Spoofing starten:</string>
+    <string name="start_joystick">Joystick starten</string>
+    <string name="stop_joystick">Joystick schließen</string>
+    <string name="select_start_point">Startpunkt auswählen!</string>
+    <string name="firstly_close_joystick">Bitte zuerst den Joystick schließen!</string>
+    <string name="joystick_max_speed">Maximale Joystick-Geschwindigkeit angeben:</string>
+    <string name="failed_get_currentloc">Aktueller Standort konnte nicht ermittelt werden!</string>
+    <string name="joystick_stop_mocking">Zum Verwenden des Joysticks bitte das Standort-Spoofing stoppen!</string>
+    <string name="joystick_enabled_error">Zum Starten des Spoofings bitte zuerst den Joystick-Modus beenden!</string>
+    <string name="joystick_enabled">Joystick-Modus!</string>
+    <string name="enter_address">Adresse eingeben!</string>
+    <string name="dev_settings_error">Entwickleroptionen konnten nicht geöffnet werden. Bitte manuell öffnen!</string>
+    <string name="location_deviation">Standortabweichung</string>
+    <string name="notification_status_control">Spoofing-Status verwalten</string>
+    <string name="go_to_coordinates">Zu Koordinaten navigieren</string>
+    <string name="enter_coodinates">Koordinaten eingeben</string>
+    <string name="share">Standort teilen</string>
+    <string name="boookmarks">Lesezeichen</string>
+    <string name="add_in_boookmarks">Zu Lesezeichen hinzufügen</string>
+    <string name="static_spoof">Fixiert</string>
+    <string name="route_spoof">Route</string>
+    <string name="bookmark_label">Bezeichnung:</string>
+    <string name="where_from_info">Von wo</string>
+    <string name="start">Start</string>
+    <string name="address">Adresse</string>
+    <string name="remove">Löschen</string>
+    <string name="could_not_get_location">Standort konnte nicht abgerufen werden. Bitte prüfen, ob Standortdienste aktiviert sind.</string>
+    <string name="failed_to_build_route">Fehler! Route konnte nicht berechnet werden</string>
+    <string name="rate_app">App bewerten!</string>
+    <string name="empty_field_error">Fehler! Das Feld darf nicht leer sein</string>
+    <string name="altitude">Höhe</string>
+    <string name="auto_altitude_detection">Automatische Höhenerkennung</string>
+    <string name="detecting_altitude">Höhe wird ermittelt…</string>
+    <string name="altitude_detection_failed">Höhe konnte nicht ermittelt werden!</string>
+    <string name="altitude_determined">Höhe erfolgreich ermittelt!</string>
+    <string name="nothing_to_view">Hier gibt es nichts!</string>
+    <string name="spoofing">Spoofing</string>
+    <string name="closed_route">Geschlossene Route!</string>
+    <string name="restore_to_real_location">Standort wiederherstellen</string>
+    <string name="restore_to_real_location_confirm">Standort wirklich auf den echten Standort zurücksetzen? (Dies kann einen Moment dauern)</string>
+    <string name="joystick_altitude_warn">Höhen-Spoofing ist vorübergehend nicht verfügbar!</string>
+    <string name="minutes">Minuten</string>
+    <string name="seconds">Sekunden</string>
+    <string name="parking_time_label">Wartezeit am Startpunkt:</string>
+    <string name="m_abbr">Min.</string>
+    <string name="s_abbr">Sek.</string>
+    <string name="auto">Auto</string>
+    <string name="route_built">Route berechnet</string>
+    <string name="altitude_above_sea_level">Höhe über Meeresspiegel:</string>
+    <string name="enter_addr_or_coordinates">Adresse oder Koordinaten eingeben:</string>
+    <string name="add_more_route">Weiteren Punkt hinzufügen?</string>
+    <string name="please_enable_location_services">Standortdienste sind deaktiviert</string>
+    <string name="remote_route">Route entfernen</string>
+    <string name="resume">Fortsetzen</string>
+    <string name="edit">Bearbeiten</string>
+    <string name="start_spoofing">Spoofing starten</string>
+    <string name="about_view_source_code"><![CDATA[Quellcode verfügbar unter %1$s<br/>Unserem %2$s-Kanal beitreten<br/>Hilf uns bei der Übersetzung der App. Mehr auf GitHub]]></string>
+    <string name="location_deviation_summary">Der Standort wird leicht variieren, wenn keine Bewegung stattfindet</string>
+    <string name="auto_altitude_summary">Die Höhe wird beim Spoofing automatisch ermittelt</string>
+    <string name="brake_at_turning_summary">Geschwindigkeit in Kurven reduzieren</string>
+    <string name="spoofing_preferences_title">Standort-Spoofing-Einstellungen</string>
+    <string name="measurement_title">Maßeinheiten</string>
+    <string name="accuracy_title">Genauigkeit</string>
+    <string name="enter_valid_value">Bitte einen gültigen Wert eingeben</string>
+    <string name="units_title">Einheiten</string>
+    <string name="map_tiles_title">Kartenkacheln</string>
+    <string name="traffic_side_title">Fahrtrichtung</string>
+    <string name="delay_at_the_last_point">Wartezeit am letzten Punkt:</string>
+    <string name="date_is_inaccurate">Datum ist falsch</string>
+    <string name="date_is_inaccurate_summary">Das Datum auf deinem Gerät ist falsch!\nUhr korrigieren und erneut versuchen.</string>
+    <string name="adjust_clock">Uhr einstellen</string>
+    <string name="our_telegram">Unser Telegram</string>
+
+    <!-- Neu: GPS-Update-Intervall in Millisekunden -->
+    <string name="enter_updates_drift_value">Zufällige ±Schwankung pro Update-Intervall in Millisekunden (z. B. 150)</string>
+
+    <!-- Neu: Zwischenstopps -->
+    <string name="tap_to_select_waypoint">Antippen zum Auswählen…</string>
+
+</resources>

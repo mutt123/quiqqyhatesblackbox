@@ -189,5 +189,7 @@
     //neu drift
     <string name="gps_updates_drift">GPS Updates drift</string>
     <string name="enter_updates_drift_value">Random ±drift per update interval in milliseconds (e.g. 150)</string>
+    <string name="tap_to_select_waypoint">Tippe zum Auswählen…</string>
+    <string name="Zwischenstopp">Zwischenstopp</string>
 
 </resources>

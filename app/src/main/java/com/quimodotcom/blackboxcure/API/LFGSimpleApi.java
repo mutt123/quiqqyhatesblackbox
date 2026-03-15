@@ -11,6 +11,7 @@ import org.osmdroid.util.GeoPoint;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -19,51 +20,40 @@ import okhttp3.Response;
 import com.quimodotcom.blackboxcure.Enumerations.ERouteTransport;
 import com.quimodotcom.blackboxcure.WebClient;
 
-// Routing: OSRM (https://project-osrm.org) — open source, no API key required
-// Elevation: Open-Elevation (https://open-elevation.com) — open source, no API key required
+// Routing: OSRM (https://routing.openstreetmap.de) — kein API-Key nötig
+// Elevation: Open-Elevation (https://open-elevation.com) — kein API-Key nötig
 public class LFGSimpleApi {
 
-    // OSRM public instance — foot profile only
-    //private static final String OSRM_BASE_URL = "https://routing.openstreetmap.de/routed-foot/route/v1/foot/";
-    // Open-Elevation public instance
     private static final String ELEVATION_URL = "https://api.open-elevation.com/api/v1/lookup";
 
-    public static final int CODE_SUCCESS = 0;
+    public static final int CODE_SUCCESS          =  0;
     public static final int CODE_CONNECTION_FAILED = -1;
-    // kept for source-compatibility with RouteBuilder, never triggered anymore
-    public static final int CODE_RECAPTCHA_RESPONSE = -2;
-    public static final int CODE_BAD_RECAPTCHA_RESPONSE = -3;
-    public static final int CODE_UNKNOWN_ERROR = -4;
+    public static final int CODE_RECAPTCHA_RESPONSE    = -2; // Kompatibilität
+    public static final int CODE_BAD_RECAPTCHA_RESPONSE = -3; // Kompatibilität
+    public static final int CODE_UNKNOWN_ERROR    = -4;
 
     public LFGSimpleApi() {}
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Elevation  (Open-Elevation)
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────
+    // Elevation
+    // ─────────────────────────────────────────────────────────────
     public static class Elevation {
 
         public interface ElevationCallback {
             void onRequestSuccess(float altitude);
-            void onCaptchaResult(); // kept for interface compatibility, never called
+            void onCaptchaResult();
             void onRequestError();
         }
 
         public Elevation() {}
-
-        /** @deprecated cacheDir is no longer used — kept for call-site compatibility */
         @Deprecated
         public Elevation(java.io.File cacheDir) {}
 
         public void getElevation(double latitude, double longitude,
                                  String ignoredChallengeResult,
                                  ElevationCallback callback) {
-
             String url = ELEVATION_URL + "?locations=" + latitude + "," + longitude;
-
-            Request request = new Request.Builder()
-                    .url(url)
-                    .get()
-                    .build();
+            Request request = new Request.Builder().url(url).get().build();
 
             WebClient.getInstance().makeRequest(request, new Callback() {
                 @Override
@@ -73,12 +63,10 @@ public class LFGSimpleApi {
                 }
 
                 @Override
-                public void onResponse(@NonNull Call call, @NonNull Response response)
-                        throws IOException {
+                public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
                     try {
-                        String body = response.body().string();
-                        JSONObject root = new JSONObject(body);
-                        JSONArray results = root.getJSONArray("results");
+                        JSONObject root    = new JSONObject(response.body().string());
+                        JSONArray  results = root.getJSONArray("results");
                         float altitude = (float) results.getJSONObject(0).getDouble("elevation");
                         callback.onRequestSuccess(altitude);
                     } catch (JSONException e) {
@@ -90,24 +78,27 @@ public class LFGSimpleApi {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Directions  (OSRM — foot profile)
-    // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────
+    // Directions  – OSRM mit optionalen Zwischenstopps
+    // ─────────────────────────────────────────────────────────────
     public static class Directions {
 
         private final double sourcelat;
         private final double sourcelong;
         private final double destlat;
         private final double destlong;
-        private final ERouteTransport transport;
 
+        /** Optionale Zwischenstopps zwischen Start und Ziel */
+        private final List<GeoPoint> waypoints;
+
+        private final ERouteTransport transport;
         private double distance;
 
         public static class DirectionsResponse {
             public String error;
-            public int code;
-            public ArrayList<GeoPoint> result;
-            public ArrayList<Integer> speedLimits; // always null — OSRM foot has no speed limits
+            public int    code;
+            public ArrayList<GeoPoint>  result;
+            public ArrayList<Integer>   speedLimits; // null für Fußgänger/Fahrrad
             public double distance;
         }
 
@@ -115,31 +106,31 @@ public class LFGSimpleApi {
             void onResult(DirectionsResponse response);
         }
 
-        /**
-         * transport and captchaResult are accepted for call-site compatibility but ignored.
-         * The OSRM foot profile is always used.
-         */
+        /** Konstruktor ohne Zwischenstopps – Rückwärtskompatibilität */
         public Directions(double sourcelat, double sourcelong,
-                          double destlat, double destlong,
-                          ERouteTransport transport, String captchaResult) {
-            this.sourcelat = sourcelat;
-            this.sourcelong = sourcelong;
-            this.destlat = destlat;
-            this.destlong = destlong;
-            this.transport = transport;
+                          double destlat,   double destlong,
+                          ERouteTransport transport, String ignoredCaptcha) {
+            this(sourcelat, sourcelong, destlat, destlong, transport, null, ignoredCaptcha);
         }
-        /*
-        private String buildOsrmUrl() {
-            // OSRM expects  lon,lat  order
-            return OSRM_BASE_URL
-                    + sourcelong + "," + sourcelat
-                    + ";"
-                    + destlong + "," + destlat
-                    + "?overview=full&geometries=geojson";
-        }
-        */
 
-        // NACHHER – transport richtig auswerten:
+        /** Konstruktor mit Zwischenstopps */
+        public Directions(double sourcelat, double sourcelong,
+                          double destlat,   double destlong,
+                          ERouteTransport transport,
+                          List<GeoPoint> waypoints,
+                          String ignoredCaptcha) {
+            this.sourcelat  = sourcelat;
+            this.sourcelong = sourcelong;
+            this.destlat    = destlat;
+            this.destlong   = destlong;
+            this.transport  = transport;
+            this.waypoints  = (waypoints != null) ? waypoints : new ArrayList<>();
+        }
+
+        /**
+         * Baut die OSRM-URL mit Start, beliebig vielen Zwischenstopps und Ziel.
+         * Format: /route/v1/{profil}/lon1,lat1;lon2,lat2;...;lonN,latN
+         */
         private String buildOsrmUrl() {
             String baseUrl;
             switch (transport) {
@@ -154,16 +145,20 @@ public class LFGSimpleApi {
                     baseUrl = "https://routing.openstreetmap.de/routed-foot/route/v1/foot/";
                     break;
             }
-            return baseUrl
-                    + sourcelong + "," + sourcelat
-                    + ";"
-                    + destlong + "," + destlat
-                    + "?overview=full&geometries=geojson";
+
+            StringBuilder coords = new StringBuilder();
+            // Start
+            coords.append(sourcelong).append(",").append(sourcelat);
+            // Zwischenstopps
+            for (GeoPoint wp : waypoints) {
+                coords.append(";").append(wp.getLongitude()).append(",").append(wp.getLatitude());
+            }
+            // Ziel
+            coords.append(";").append(destlong).append(",").append(destlat);
+
+            return baseUrl + coords + "?overview=full&geometries=geojson";
         }
 
-
-
-        /** context parameter accepted for call-site compatibility but not used. */
         public void downloadRoute(android.content.Context context, DirectionsCallback callback) {
             downloadRoute(callback);
         }
@@ -181,65 +176,49 @@ public class LFGSimpleApi {
                 public void onFailure(@NonNull Call call, @NonNull IOException e) {
                     Log.e("RouteBuilder", "onFailure", e);
                     response.error = e.getMessage();
-                    response.code = CODE_CONNECTION_FAILED;
+                    response.code  = CODE_CONNECTION_FAILED;
                     callback.onResult(response);
                 }
 
                 @Override
-                public void onResponse(@NonNull Call call, @NonNull Response _response)
-                        throws IOException {
+                public void onResponse(@NonNull Call call, @NonNull Response _response) throws IOException {
                     try {
-                        String responseString = _response.body().string();
-                        Log.d("RouteBuilder", "onResponse: " + responseString);
+                        String     responseString = _response.body().string();
+                        JSONObject root           = new JSONObject(responseString);
 
-                        JSONObject root = new JSONObject(responseString);
-
-                        // OSRM returns {"code":"Ok",...} on success
                         String code = root.optString("code", "");
                         if (!code.equals("Ok")) {
-                            response.code = CODE_UNKNOWN_ERROR;
+                            response.code  = CODE_UNKNOWN_ERROR;
                             response.error = root.optString("message", "OSRM error: " + code);
                             callback.onResult(response);
                             return;
                         }
 
-                        JSONArray routes = root.getJSONArray("routes");
-                        JSONObject route = routes.getJSONObject(0);
+                        JSONObject route       = root.getJSONArray("routes").getJSONObject(0);
+                        distance               = route.getDouble("distance");
+                        response.distance      = distance;
 
-                        // Distance in metres
-                        distance = route.getDouble("distance");
-                        response.distance = distance;
-
-                        // Geometry: GeoJSON LineString  →  coordinates: [[lon,lat], ...]
-                        JSONObject geometry = route.getJSONObject("geometry");
-                        JSONArray coordinates = geometry.getJSONArray("coordinates");
-
+                        JSONArray coordinates  = route.getJSONObject("geometry").getJSONArray("coordinates");
                         ArrayList<GeoPoint> points = new ArrayList<>(coordinates.length());
                         for (int i = 0; i < coordinates.length(); i++) {
                             JSONArray coord = coordinates.getJSONArray(i);
-                            double lon = coord.getDouble(0);
-                            double lat = coord.getDouble(1);
-                            // elevation not included in OSRM foot response by default
-                            points.add(new GeoPoint(lat, lon));
+                            points.add(new GeoPoint(coord.getDouble(1), coord.getDouble(0)));
                         }
 
-                        response.result = points;
-                        response.speedLimits = null; // pedestrian — no speed limits
-                        response.code = CODE_SUCCESS;
+                        response.result      = points;
+                        response.speedLimits = null;
+                        response.code        = CODE_SUCCESS;
 
                     } catch (Exception e) {
                         Log.e("RouteBuilder", "parse error", e);
-                        response.code = CODE_UNKNOWN_ERROR;
+                        response.code  = CODE_UNKNOWN_ERROR;
                         response.error = e.getMessage();
                     }
-
                     callback.onResult(response);
                 }
             });
         }
 
-        public double getDistance() {
-            return distance;
-        }
+        public double getDistance() { return distance; }
     }
 }

@@ -8,18 +8,19 @@ import com.quimodotcom.blackboxcure.Enumerations.ERouteTransport;
 public class SpoofingPlaceInfo {
 
     public static final String CLOSED_ROUTE_MOTION_INVERT = "closed_route_motion_invert";
-    public static final String ORIGIN_LAT = "org_lat";
-    public static final String ORIGIN_LNG = "org_lng";
+    public static final String ORIGIN_LAT  = "org_lat";
+    public static final String ORIGIN_LNG  = "org_lng";
+    public static final String DEST_LAT    = "dst_lat";
+    public static final String DEST_LNG    = "dst_lng";
 
-    public static final String DEST_LAT = "dst_lat";
-    public static final String DEST_LNG = "dst_lng";
+    /** double[] arrays für Zwischenstopps (leer = keine) */
+    public static final String WAYPOINTS_LATS = "wp_lats";
+    public static final String WAYPOINTS_LONS = "wp_lons";
 
     public static final String ORIGIN_ADDRESS = "org_addr";
-    public static final String DEST_ADDRESS = "dst_addr";
-
-    public static final String ADDRESS = "address";
-
-    public static final String TRANSPORT = "transport";
+    public static final String DEST_ADDRESS   = "dst_addr";
+    public static final String ADDRESS        = "address";
+    public static final String TRANSPORT      = "transport";
 
     public static double sourceLat;
     public static double sourceLng;
@@ -37,19 +38,18 @@ public class SpoofingPlaceInfo {
 
     private final MapView mMap;
 
-    public SpoofingPlaceInfo(MapView mMap){
+    public SpoofingPlaceInfo(MapView mMap) {
         this.mMap = mMap;
     }
 
-    public void removeRoute(){
+    public void removeRoute() {
         for (Overlay overlay : mMap.getOverlays()) {
             if (!(overlay instanceof LocationMarker))
                 mMap.getOverlays().remove(overlay);
         }
         mMap.invalidate();
-
-        latitude = 0d;
+        latitude  = 0d;
         longtiude = 0d;
-        address = null;
+        address   = null;
     }
 }

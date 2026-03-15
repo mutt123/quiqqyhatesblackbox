@@ -1,166 +1,183 @@
 package com.quimodotcom.blackboxcure.Presenter;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-
 import com.quimodotcom.blackboxcure.Contract.SearchImpl;
-import com.quimodotcom.blackboxcure.Contract.SearchImpl.UI;
 import com.quimodotcom.blackboxcure.Enumerations.ERouteTransport;
-import com.quimodotcom.blackboxcure.BlackBoxCureApp;
+import com.quimodotcom.blackboxcure.ListickApp;
 import com.quimodotcom.blackboxcure.R;
 import com.quimodotcom.blackboxcure.SpoofingPlaceInfo;
 import com.quimodotcom.blackboxcure.UI.SelectPointActivity;
 
-/*
- * Created by LittleAngry on 13.01.19 (macOS 10.12)
- * */
+import org.osmdroid.util.GeoPoint;
+
+import java.util.ArrayList;
+
 public class SearchPresenter implements SearchImpl.Presenter {
 
+    /** Public – wird von SelectPointActivity referenziert */
     public static final String OPEN_SEARCH = "open_search";
 
-    private static final int ORIGIN = 1;
-    private static final int DESTINATION = 2;
+    private static final int DESTINATION   = 1;
+    private static final int ORIGIN        = 2;
+    /** Request-Codes für Zwischenstopps: 100, 101, 102 … */
+    private static final int WAYPOINT_BASE = 100;
 
-    private SearchImpl.UI mUserInterface;
-    private Activity mActivity;
+    private final Activity      mActivity;
+    private final SearchImpl.UI mUserInterface;
 
-    private double mDestLat;
-    private double mDestLong;
+    private double  mOriginLat;
+    private double  mOriginLong;
+    private double  mDestLat;
+    private double  mDestLong;
+    private String  mOriginAddress;
+    private String  mDestAddress;
+    private boolean preparedForFinish = false;
 
-    private double mOriginLat;
-    private double mOriginLong;
+    private ERouteTransport mTransport = ERouteTransport.ROUTE_WALK;
 
-    private String mDestAddress;
-    private String mOriginAddress;
+    /** Zwischenstopps in Reihenfolge */
+    private final ArrayList<GeoPoint> mWaypoints     = new ArrayList<>();
+    private final ArrayList<String>   mWaypointAddrs = new ArrayList<>();
 
-    private ERouteTransport mTransport;
-
-    private boolean preparedForFinish;
-
-    public SearchPresenter(UI userInterface){
-        mUserInterface = userInterface;
-        mActivity = (Activity) userInterface;
-    }
-
-    @Override
-    public void onActivityLoad() {
+    public SearchPresenter(Activity activity, SearchImpl.UI ui) {
+        mActivity      = activity;
+        mUserInterface = ui;
         getOriginAddress();
-        onTransport(ERouteTransport.ROUTE_CAR);
+        changeTransport(ERouteTransport.ROUTE_WALK);
     }
 
-    @Override
-    public void onDestination() {
-        findOnMap(DESTINATION);
-    }
-
-    @Override
-    public void onOrigin() {
-        findOnMap(ORIGIN);
-    }
-
-    @Override
-    public void onContinue() {
-        sendResults();
-    }
+    @Override public void onActivityLoad()  { getOriginAddress(); }
+    @Override public void onDestination()   { findOnMap(DESTINATION); }
+    @Override public void onOrigin()        { findOnMap(ORIGIN); }
+    @Override public void onContinue()      { sendResults(); }
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (resultCode == Activity.RESULT_OK && data != null){
-            if (requestCode == DESTINATION) {
-                this.preparedForFinish = true;
-                mDestLat = data.getDoubleExtra(BlackBoxCureApp.LATITUDE, 0d);
-                mDestLong = data.getDoubleExtra(BlackBoxCureApp.LONGITUDE, 0d);
-                mDestAddress = data.getStringExtra(SpoofingPlaceInfo.ADDRESS);
+        if (resultCode != Activity.RESULT_OK || data == null) return;
 
-                mUserInterface.setDestAddress(mDestAddress);
-            } else if (requestCode == ORIGIN) {
-                mOriginLat = data.getDoubleExtra(BlackBoxCureApp.LATITUDE, 0d);
-                mOriginLong = data.getDoubleExtra(BlackBoxCureApp.LONGITUDE, 0d);
-                mOriginAddress = data.getStringExtra(SpoofingPlaceInfo.ADDRESS);
+        double lat  = data.getDoubleExtra(ListickApp.LATITUDE,  0d);
+        double lon  = data.getDoubleExtra(ListickApp.LONGITUDE, 0d);
+        String addr = data.getStringExtra(SpoofingPlaceInfo.ADDRESS);
 
-                mUserInterface.setOriginAddress(mOriginAddress);
+        if (requestCode == DESTINATION) {
+            preparedForFinish = true;
+            mDestLat = lat; mDestLong = lon; mDestAddress = addr;
+            mUserInterface.setDestAddress(mDestAddress);
+
+        } else if (requestCode == ORIGIN) {
+            mOriginLat = lat; mOriginLong = lon; mOriginAddress = addr;
+            mUserInterface.setOriginAddress(mOriginAddress);
+
+        } else if (requestCode >= WAYPOINT_BASE) {
+            int index = requestCode - WAYPOINT_BASE;
+            if (index < mWaypoints.size()) {
+                mWaypoints.set(index, new GeoPoint(lat, lon));
+                String label = (addr != null && !addr.isEmpty()) ? addr : lat + ", " + lon;
+                mWaypointAddrs.set(index, label);
+                mUserInterface.updateWaypoint(index, label);
             }
         }
     }
 
     @Override
     public void selectOnMap() {
-        InputMethodManager imm = (InputMethodManager) mActivity.getSystemService(Context.INPUT_METHOD_SERVICE);
-
-        View view = mActivity.getCurrentFocus();
-        if (view == null) { view = new View(mActivity); }
-        if (imm != null) {
-            imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
-        }
-        view.clearFocus();
-
-        Intent intent = mActivity.getIntent();
-        double originLat = intent.getDoubleExtra(BlackBoxCureApp.LATITUDE, 0d);
-        double originLong = intent.getDoubleExtra(BlackBoxCureApp.LONGITUDE, 0d);
-
-        mActivity.startActivityForResult(new Intent(mActivity, SelectPointActivity.class)
-                .putExtra(BlackBoxCureApp.LATITUDE,  originLat)
-                .putExtra(BlackBoxCureApp.LONGITUDE, originLong), DESTINATION); // 1 is dest request code
+        hideKeyboard();
+        Intent i = mActivity.getIntent();
+        openSelectPoint(
+                DESTINATION,
+                i.getDoubleExtra(ListickApp.LATITUDE,  0d),
+                i.getDoubleExtra(ListickApp.LONGITUDE, 0d));
     }
 
-    private void findOnMap(int field){
-        InputMethodManager imm = (InputMethodManager) mActivity.getSystemService(Context.INPUT_METHOD_SERVICE);
+    @Override
+    public void onTransport(ERouteTransport transport) { changeTransport(transport); }
 
-        View view = mActivity.getCurrentFocus();
-        if (view == null) view = new View(mActivity);
-        if (imm != null) imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
-        view.clearFocus();
+    // ── Zwischenstopps ───────────────────────────────────────────
 
+    /** Fügt neuen Zwischenstopp ein und öffnet sofort die Kartenauswahl */
+    public void addWaypoint() {
+        int index = mWaypoints.size();
+        mWaypoints.add(new GeoPoint(mOriginLat, mOriginLong));
+        mWaypointAddrs.add("");
+        mUserInterface.addWaypointRow(index, "");
+        openSelectPoint(WAYPOINT_BASE + index, mOriginLat, mOriginLong);
+    }
+
+    /** Entfernt Zwischenstopp an Position index */
+    public void removeWaypoint(int index) {
+        if (index < 0 || index >= mWaypoints.size()) return;
+        mWaypoints.remove(index);
+        mWaypointAddrs.remove(index);
+        mUserInterface.removeWaypointRow(index);
+    }
+
+    /** Öffnet Kartenauswahl um vorhandenen Zwischenstopp zu ändern */
+    public void editWaypoint(int index) {
+        GeoPoint wp = mWaypoints.get(index);
+        openSelectPoint(WAYPOINT_BASE + index, wp.getLatitude(), wp.getLongitude());
+    }
+
+    // ── Intern ───────────────────────────────────────────────────
+
+    private void openSelectPoint(int requestCode, double lat, double lon) {
+        hideKeyboard();
+        mActivity.startActivityForResult(
+                new Intent(mActivity, SelectPointActivity.class)
+                        .putExtra(ListickApp.LATITUDE,  lat)
+                        .putExtra(ListickApp.LONGITUDE, lon)
+                        .putExtra(OPEN_SEARCH, true),
+                requestCode);
+    }
+
+    private void findOnMap(int field) {
+        hideKeyboard();
         Intent intent = mActivity.getIntent();
-
-        double originLat = intent.getDoubleExtra(BlackBoxCureApp.LATITUDE, 0d);
-        double originLong = intent.getDoubleExtra(BlackBoxCureApp.LONGITUDE, 0d);
-
-        mActivity.startActivityForResult(new Intent(mActivity, SelectPointActivity.class)
-                    .putExtra(BlackBoxCureApp.LATITUDE,  originLat)
-                    .putExtra(BlackBoxCureApp.LONGITUDE, originLong)
-                    .putExtra(OPEN_SEARCH, true), field); // 1 is dest request code
-
+        openSelectPoint(field,
+                intent.getDoubleExtra(ListickApp.LATITUDE,  0d),
+                intent.getDoubleExtra(ListickApp.LONGITUDE, 0d));
     }
 
     private void sendResults() {
-        Intent intent = new Intent();
-
-        intent.putExtra(SpoofingPlaceInfo.ORIGIN_LAT, mOriginLat);
-        intent.putExtra(SpoofingPlaceInfo.ORIGIN_LNG, mOriginLong);
-
-        intent.putExtra(SpoofingPlaceInfo.DEST_LAT, mDestLat);
-        intent.putExtra(SpoofingPlaceInfo.DEST_LNG, mDestLong);
-
-        intent.putExtra(SpoofingPlaceInfo.ORIGIN_ADDRESS, mOriginAddress);
-        intent.putExtra(SpoofingPlaceInfo.DEST_ADDRESS, mDestAddress);
-        intent.putExtra(SpoofingPlaceInfo.TRANSPORT, mTransport);
-
-
-        if (preparedForFinish) {
-            mActivity.setResult(Activity.RESULT_OK, intent);
-            mActivity.finishAfterTransition();
-        } else {
-            MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(mActivity, R.style.ThemeOverlay_Material3_MaterialAlertDialog_Centered);
-            builder.setTitle(R.string.you_dont_select_dest)
+        if (!preparedForFinish) {
+            new MaterialAlertDialogBuilder(mActivity, R.style.ThemeOverlay_Material3_MaterialAlertDialog_Centered)
+                    .setTitle(R.string.you_dont_select_dest)
                     .setMessage(R.string.please_select_dest)
                     .setCancelable(true)
-                    .setPositiveButton(R.string.okay, (dialog, which) -> dialog.cancel())
+                    .setPositiveButton(R.string.okay, (d, w) -> d.cancel())
                     .setIcon(R.drawable.ic_location)
                     .show();
+            return;
         }
-    }
 
+        Intent intent = new Intent();
+        intent.putExtra(SpoofingPlaceInfo.ORIGIN_LAT,    mOriginLat);
+        intent.putExtra(SpoofingPlaceInfo.ORIGIN_LNG,    mOriginLong);
+        intent.putExtra(SpoofingPlaceInfo.DEST_LAT,      mDestLat);
+        intent.putExtra(SpoofingPlaceInfo.DEST_LNG,      mDestLong);
+        intent.putExtra(SpoofingPlaceInfo.ORIGIN_ADDRESS, mOriginAddress);
+        intent.putExtra(SpoofingPlaceInfo.DEST_ADDRESS,   mDestAddress);
+        intent.putExtra(SpoofingPlaceInfo.TRANSPORT,      mTransport);
 
-    @Override
-    public void onTransport(ERouteTransport transport) {
-        changeTransport(transport);
+        // Zwischenstopps als parallele double[] Arrays
+        if (!mWaypoints.isEmpty()) {
+            double[] lats = new double[mWaypoints.size()];
+            double[] lons = new double[mWaypoints.size()];
+            for (int i = 0; i < mWaypoints.size(); i++) {
+                lats[i] = mWaypoints.get(i).getLatitude();
+                lons[i] = mWaypoints.get(i).getLongitude();
+            }
+            intent.putExtra(SpoofingPlaceInfo.WAYPOINTS_LATS, lats);
+            intent.putExtra(SpoofingPlaceInfo.WAYPOINTS_LONS, lons);
+        }
+
+        mActivity.setResult(Activity.RESULT_OK, intent);
+        mActivity.finishAfterTransition();
     }
 
     private void changeTransport(ERouteTransport transport) {
@@ -172,9 +189,15 @@ public class SearchPresenter implements SearchImpl.Presenter {
     private void getOriginAddress() {
         Intent intent = mActivity.getIntent();
         mUserInterface.setOriginAddress(intent.getStringExtra(SpoofingPlaceInfo.ORIGIN_ADDRESS));
-
-        mOriginLat = intent.getDoubleExtra(BlackBoxCureApp.LATITUDE, 0d);
-        mOriginLong = intent.getDoubleExtra(BlackBoxCureApp.LONGITUDE, 0d);
+        mOriginLat  = intent.getDoubleExtra(ListickApp.LATITUDE,  0d);
+        mOriginLong = intent.getDoubleExtra(ListickApp.LONGITUDE, 0d);
     }
 
+    private void hideKeyboard() {
+        InputMethodManager imm = (InputMethodManager) mActivity.getSystemService(Context.INPUT_METHOD_SERVICE);
+        View view = mActivity.getCurrentFocus();
+        if (view == null) view = new View(mActivity);
+        if (imm != null) imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
+        view.clearFocus();
+    }
 }
