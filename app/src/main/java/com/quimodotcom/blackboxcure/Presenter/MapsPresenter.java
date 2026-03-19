@@ -86,6 +86,7 @@ import com.quimodotcom.blackboxcure.UI.SearchActivity;
 import com.quimodotcom.blackboxcure.UI.SettingsActivity;
 //import com.quimodotcom.blackboxcure.UI.WrongTimeActivity;
 import com.quimodotcom.blackboxcure.WebClient;
+import com.quimodotcom.blackboxcure.DemapOverlay;
 
 /*
  * Created by LittleAngry on 25.12.18 (macOS 10.12)
@@ -109,6 +110,7 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
     private final IntentFilter filter;
 
     private boolean isRoute = false;
+    private DemapOverlay mDemapOverlay;
     private double mDistance = -1;
 
     @Override
@@ -122,13 +124,13 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
         restoreRoute();
         //sendDeviceAnalytics();
 
-        if (!PermissionManager.isPackageInstalled(BlackBoxCureApp.TELEGRAM_PACKAGE_NAME)) {
-            mUserInterface.removeMenuItem(R.id.our_telegram);
-        }
+        //if (!PermissionManager.isPackageInstalled(BlackBoxCureApp.TELEGRAM_PACKAGE_NAME)) {
+        //    mUserInterface.removeMenuItem(R.id.our_telegram);
+        //}
 
-        if (!PermissionManager.isPackageInstalled(BlackBoxCureApp.PLAY_PACKAGE_NAME)) {
-            mUserInterface.removeMenuItem(R.id.rate_app);
-        }
+        //if (!PermissionManager.isPackageInstalled(BlackBoxCureApp.PLAY_PACKAGE_NAME)) {
+        //    mUserInterface.removeMenuItem(R.id.rate_app);
+        //}
     }
 
     /*public void sendDeviceAnalytics() {
@@ -281,6 +283,9 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
             }
         };
         context.registerReceiver(updateUIReciver, filter);
+        mDemapOverlay = new DemapOverlay(context);
+        mDemapOverlay.setEnabled(false); // startet deaktiviert
+        mMap.getOverlays().add(mDemapOverlay);
     }
 
     @Override
@@ -305,7 +310,8 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
                         mUserInterface.setAddress(fallbackAddress);
                     }
                 });
-
+        if (mDemapOverlay != null && mDemapOverlay.isEnabled())
+            mDemapOverlay.refresh(mMap);
     }
 
     @Override
@@ -784,23 +790,53 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
             case R.id.go_to_coordinates:
                 goToCoordinates();
                 break;
-            case R.id.share_location:
-                handleShareLocation();
-                break;
+            //case R.id.share_location:
+            //    handleShareLocation();
+            //    break;
             case R.id.about:
                 showAboutDialog();
                 break;
-            case R.id.our_telegram:
-                openTelegramChannel();
-                break;
+            //case R.id.our_telegram:
+            //    openTelegramChannel();
+            //    break;
             // case R.id.add_in_bookmarks:
             //     addInBookmarks();
             //     break;
             // case R.id.bookmarks:
             //     openBookmarks();
             //     break;
-            case R.id.rate_app:
-                openGpForRate();
+            //case R.id.rate_app:
+            //    openGpForRate();
+            //    break;
+
+            case R.id.toggle_demap:
+                boolean on = !mDemapOverlay.isEnabled();
+                mDemapOverlay.setEnabled(on);
+                item.setChecked(on);
+                mDemapOverlay.clearCache();
+                if (on) mDemapOverlay.refresh(mMap);
+                mMap.invalidate();
+                break;
+            case R.id.toggle_pokestops:
+                mDemapOverlay.setShowPokestops(!mDemapOverlay.isShowPokestops());
+                item.setChecked(mDemapOverlay.isShowPokestops());
+                mDemapOverlay.clearCache();
+                mDemapOverlay.refresh(mMap);
+                mMap.invalidate();
+                break;
+            case R.id.toggle_gyms:
+                mDemapOverlay.setShowGyms(!mDemapOverlay.isShowGyms());
+                item.setChecked(mDemapOverlay.isShowGyms());
+                mDemapOverlay.clearCache();
+                mDemapOverlay.refresh(mMap);
+                mMap.invalidate();
+                break;
+            case R.id.toggle_stations:
+                mDemapOverlay.setShowStations(!mDemapOverlay.isShowStations());
+                item.setChecked(mDemapOverlay.isShowStations());
+                mDemapOverlay.clearCache();
+                mDemapOverlay.refresh(mMap);
+                mMap.invalidate();
                 break;
         }
     }
