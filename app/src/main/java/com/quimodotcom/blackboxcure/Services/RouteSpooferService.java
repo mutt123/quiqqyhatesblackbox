@@ -50,6 +50,9 @@ public class RouteSpooferService extends Service {
     public static final String UI_SPEED_KEY        = "ui_speed_key";
     public static final String UI_PASSED_DISTANCE  = "ui_passed_distance";
     public static final String UI_TOTAL_DISTANCE   = "ui_total_distance";
+    public static final String UI_ARRIVED          = "ui_arrived";
+    public static final String UI_SPOOF_LAT        = "ui_spoof_lat";
+    public static final String UI_SPOOF_LON        = "ui_spoof_lon";
 
     private FusedLocationsProvider mFusedLocationProvider;
     private Randomizer  mRandomizer;
@@ -98,6 +101,9 @@ public class RouteSpooferService extends Service {
         static boolean isClosedRoute;
     }
 
+    private boolean mBound = false;
+    private IBinder mCachedBinder = null;
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         super.onStartCommand(intent, flags, startId);
@@ -108,6 +114,13 @@ public class RouteSpooferService extends Service {
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
+        // Wenn bereits gebunden (Route ändern-Fall): nur IBinder zurückgeben
+        // KEIN initTestProvider() – das würde laufende Mock-Provider zerstören
+        if (mBound) {
+            return mCachedBinder;
+        }
+        mBound = true;
+
         mHandler               = new Handler();
         mRandomizer            = new Randomizer();
         mFusedLocationProvider = new FusedLocationsProvider(this);
@@ -123,9 +136,9 @@ public class RouteSpooferService extends Service {
                     if (!isPaused) mainRouteRunnable.resetDrift();
                 }
                 //if (intent.hasExtra(MainServiceControl.KEY_SPEED_DELTA)) {
-                    //int delta = intent.getIntExtra(MainServiceControl.KEY_SPEED_DELTA, 0);
-                    //mSpeed = Math.max(1, mSpeed + delta);
-                    //arrayRunSpeed = mRandomizer.getArrayRunSpeed(mSpeed, mUpdatesDelay);
+                //int delta = intent.getIntExtra(MainServiceControl.KEY_SPEED_DELTA, 0);
+                //mSpeed = Math.max(1, mSpeed + delta);
+                //arrayRunSpeed = mRandomizer.getArrayRunSpeed(mSpeed, mUpdatesDelay);
                 //}
 
                 if (intent.hasExtra(MainServiceControl.KEY_SPEED_DELTA)) {
@@ -193,7 +206,7 @@ public class RouteSpooferService extends Service {
         mUpdateUI.setAction(MapsPresenter.UPDATE_UI_ACTION);
         mUpdateUI.putExtra(UI_TOTAL_DISTANCE, mTotalDistance);
 
-        return new ISpooferService.Stub() {
+        mCachedBinder = new ISpooferService.Stub() {
 
             @Override
             public void attachRoutes(List<MultipleRoutesInfo> routes) throws RemoteException {
@@ -203,12 +216,25 @@ public class RouteSpooferService extends Service {
                         mSpoofRoute.get(0).getLongitude(),
                         mSpoofRoute.get(0).getAltitude());
 
-                if (mainRouteThread.getState() == Thread.State.NEW) {
-                    mainRouteThread.start();
-                } else {
+                // Alten Runnable stoppen: stopped=true verhindert weiteres postDelayed
+                // selbst wenn run() gerade mitten in der Ausführung ist
+                mainRouteRunnable.stopped = true;
+                mHandler.removeCallbacks(mainRouteRunnable);
+                if (mainRouteThread.getState() != Thread.State.NEW
+                        && mainRouteThread.getState() != Thread.State.TERMINATED) {
                     mainRouteThread.interrupt();
-                    mHandler.removeCallbacks(mainRouteRunnable);
+                    try { mainRouteThread.join(300); } catch (InterruptedException ignored) {}
                 }
+
+                // Service-State für neue Route zurücksetzen
+                mPassedDistance = 0;
+                mRouteSlice     = 0;
+
+                // Neues Runnable + Thread erstellen
+                mainRouteRunnable = new MainRouteRunnable();
+                mainRouteThread   = new Thread(mainRouteRunnable);
+                isPaused          = false;
+                mainRouteThread.start();
 
                 if (waitingStart)
                     new Handler(Looper.getMainLooper()).postDelayed(
@@ -227,11 +253,14 @@ public class RouteSpooferService extends Service {
             @Override
             public List<MultipleRoutesInfo> getRoutes() throws RemoteException { return mRoutes; }
         };
+        return mCachedBinder;
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
+        mBound = false;
+        mCachedBinder = null;
         mainRouteThread.interrupt();
         if (mHandler != null && mainRouteRunnable != null)
             mHandler.removeCallbacks(mainRouteRunnable);
@@ -294,6 +323,12 @@ public class RouteSpooferService extends Service {
     private void updateUI(float speed, double distance) {
         mUpdateUI.putExtra(UI_SPEED_KEY, speed);
         mUpdateUI.putExtra(UI_PASSED_DISTANCE, distance);
+        mUpdateUI.putExtra(UI_SPOOF_LAT, mCurrentStep != null ? mCurrentStep.getLatitude() : 0d);
+        mUpdateUI.putExtra(UI_SPOOF_LON, mCurrentStep != null ? mCurrentStep.getLongitude() : 0d);
+        // Route beendet wenn letzter Slice und am Ende angekommen
+        boolean allSlicesDone = (mRouteSlice >= mSlices.length - 1);
+        boolean atEnd = (mainRouteRunnable != null && mainRouteRunnable.isAtEnd());
+        mUpdateUI.putExtra(UI_ARRIVED, allSlicesDone && atEnd);
         sendBroadcast(mUpdateUI);
         MainServiceControl.notifyOverlaySpeed(
                 RouteSpooferService.this, (int) speed, mBaseSpeed, isPaused);
@@ -309,6 +344,10 @@ public class RouteSpooferService extends Service {
     Thread mainRouteThread = new Thread(mainRouteRunnable);
 
     class MainRouteRunnable implements Runnable {
+
+        /** Wird auf true gesetzt wenn attachRoutes() einen neuen Runnable erstellt.
+         *  Verhindert dass der alte Runnable sich via postDelayed neu einreiht. */
+        volatile boolean stopped = false;
 
         private int     arrayRunIndex = 0;
         private int     arrayRunSpeed;
@@ -395,8 +434,9 @@ public class RouteSpooferService extends Service {
             postDelayedJittered();
         }
 
-        /** postDelayed mit ±mUpdatesDrift Jitter */
+        /** postDelayed mit ±mUpdatesDrift Jitter — nur wenn dieser Runnable noch aktiv ist */
         private void postDelayedJittered() {
+            if (stopped) return; // alter Runnable → nicht mehr einreihen
             long lo = Math.max(50, mUpdatesDelay - mUpdatesDrift);
             long hi = mUpdatesDelay + mUpdatesDrift;
             mHandler.postDelayed(this, ThreadLocalRandom.current().nextLong(lo, hi + 1));
@@ -416,6 +456,10 @@ public class RouteSpooferService extends Service {
         public void resetDrift() {
             anchorLat = Double.NaN; anchorLon = Double.NaN;
             driftLat  = 0.0;       driftLon  = 0.0;
+        }
+
+        public boolean isAtEnd() {
+            return mSpoofRoute != null && arrayRunIndex >= mSpoofRoute.size() - 1;
         }
 
         // ── Route-Logik ──────────────────────────────────────────

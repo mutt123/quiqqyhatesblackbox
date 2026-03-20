@@ -228,7 +228,6 @@
             app:icon="@drawable/ic_stop"
             app:iconGravity="textStart" />
 
-
         <com.google.android.material.button.MaterialButton
             android:id="@+id/remote_route"
             style="@style/Widget.Material3.Button.TonalButton"
@@ -254,7 +253,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_below="@id/please_enable_location_services"
-            android:layout_marginStart="18dp"
+            android:layout_marginStart="4dp"
             android:layout_marginEnd="4dp"
             android:layout_marginTop="8dp"
             android:layout_marginBottom="8dp"
@@ -269,7 +268,6 @@
             app:iconTint="@color/uicolor_inverted"
             app:iconGravity="textStart" />
 
-
         <com.google.android.material.button.MaterialButton
             android:id="@+id/edit_button"
             style="@style/Widget.Material3.Button.TonalButton.Icon"
@@ -279,7 +277,7 @@
             android:layout_marginStart="18dp"
             android:layout_marginTop="8dp"
             android:layout_marginBottom="8dp"
-            android:layout_toStartOf="@id/stop_button"
+            android:layout_toStartOf="@id/pause_button"
             android:backgroundTint="@color/stop_tonal_button"
             android:gravity="center"
             android:text="@string/edit"
@@ -290,6 +288,27 @@
             app:iconGravity="textStart"
             android:textColor="@color/uicolor_inverted"
             app:iconTint="@color/uicolor_inverted" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/continue_route_button"
+            style="@style/Widget.Material3.Button.TonalButton.Icon"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/please_enable_location_services"
+            android:layout_marginStart="18dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:layout_toStartOf="@id/pause_button"
+            android:backgroundTint="#1565C0"
+            android:gravity="center"
+            android:text="@string/change_route"
+            android:layout_marginEnd="4dp"
+            android:lines="1"
+            android:visibility="gone"
+            app:icon="@drawable/ic_route"
+            app:iconGravity="textStart"
+            android:textColor="@color/white"
+            app:iconTint="@color/white" />
 
     </RelativeLayout>
 

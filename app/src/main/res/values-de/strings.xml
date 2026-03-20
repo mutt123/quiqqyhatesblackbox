@@ -170,6 +170,7 @@
     <string name="enter_addr_or_coordinates">Adresse oder Koordinaten eingeben:</string>
     <string name="add_more_route">Weiteren Punkt hinzufügen?</string>
     <string name="please_enable_location_services">Standortdienste sind deaktiviert</string>
+    <string name="change_route">Route ändern</string>
     <string name="remote_route">Route entfernen</string>
     <string name="resume">Fortsetzen</string>
     <string name="edit">Bearbeiten</string>

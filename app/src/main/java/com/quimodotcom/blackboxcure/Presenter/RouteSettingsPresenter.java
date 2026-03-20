@@ -17,6 +17,7 @@ import com.quimodotcom.blackboxcure.BlackBoxCureApp;
 import com.quimodotcom.blackboxcure.MultipleRoutesInfo;
 import com.quimodotcom.blackboxcure.RouteManager;
 import com.quimodotcom.blackboxcure.Services.FixedSpooferService;
+import com.quimodotcom.blackboxcure.PermissionManager;
 import com.quimodotcom.blackboxcure.Services.ISpooferService;
 import com.quimodotcom.blackboxcure.Services.RouteSpooferService;
 import com.quimodotcom.blackboxcure.SpoofingPlaceInfo;
@@ -191,6 +192,26 @@ public class RouteSettingsPresenter implements RouteSettingsImpl.Presenter {
             RouteManager.routes.get(0).setSpeedDiff(speedDiff);
             RouteManager.routes.get(0).setElevation(elevation);
             RouteManager.routes.get(0).setElevationDiff(elevationDiff);
+
+            // FixedSpooferService stoppen falls vorhanden (Sicherheit)
+            if (PermissionManager.isServiceRunning(mActivity, FixedSpooferService.class)) {
+                mActivity.stopService(new Intent(mActivity, FixedSpooferService.class));
+            }
+
+            // Wenn RouteSpooferService bereits läuft (Route ändern-Fall):
+            // neue Route per AIDL übergeben statt Service neu starten
+            if (sService != null && PermissionManager.isServiceRunning(
+                    mActivity, RouteSpooferService.class)) {
+                try {
+                    sService.attachRoutes(RouteManager.routes);
+                    sService.setPause(false);
+                } catch (Exception e) {
+                    android.util.Log.e(TAG, "attachRoutes failed", e);
+                }
+                mActivity.setResult(Activity.RESULT_OK);
+                mActivity.finish();
+                return;
+            }
 
             Intent i = new Intent(mActivity, RouteSpooferService.class)
                     .putExtra(BlackBoxCureApp.SPEED, speed)

@@ -33,6 +33,7 @@ public interface MapsImpl {
         String getWhereToAddress();
         void setJoystickMsgVisiblity(int visiblity);
         void toggleEditButton(int show);
+        void toggleContinueRoute(int visibility);
         void setAddressShimmer(boolean enable);
         void setAddMoreRoute(int visibilty);
         void setLocationDisabledNotification(int visibilty);
@@ -58,6 +59,7 @@ public interface MapsImpl {
         void handleStop();
         void handleClear();
         void handlePause();
+        void continueRoute();
         void onAddMoreRoute(ActivityOptionsCompat uiOptions);
         void changePoint();
 

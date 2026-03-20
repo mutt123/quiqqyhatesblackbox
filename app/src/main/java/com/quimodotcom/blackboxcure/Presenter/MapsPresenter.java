@@ -55,6 +55,7 @@ import com.quimodotcom.blackboxcure.Enumerations.ERouteTransport;
 import com.quimodotcom.blackboxcure.FakeGPSApplication;
 import com.quimodotcom.blackboxcure.JoystickOverlay;
 import com.quimodotcom.blackboxcure.BlackBoxCureApp;
+import com.quimodotcom.blackboxcure.ListickApp;
 import com.quimodotcom.blackboxcure.LocationMarker;
 import com.quimodotcom.blackboxcure.LocationOperations;
 import com.quimodotcom.blackboxcure.LocationServices;
@@ -110,6 +111,8 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
     private final IntentFilter filter;
 
     private boolean isRoute = false;
+    private double  mSpoofedLat = 0d;
+    private double  mSpoofedLon = 0d;
     private DemapOverlay mDemapOverlay;
     private double mDistance = -1;
 
@@ -276,10 +279,17 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
         updateUIReciver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                int speed = intent.getIntExtra(RouteSpooferService.UI_SPEED_KEY, 0);
+                // speed wird als float gesendet, muss als float gelesen werden
+                float speedF = intent.getFloatExtra(RouteSpooferService.UI_SPEED_KEY, 0f);
+                int speed = (int) speedF;
                 double passedDistance = intent.getDoubleExtra(RouteSpooferService.UI_PASSED_DISTANCE, 0);
                 double totalDistance = intent.getDoubleExtra(RouteSpooferService.UI_TOTAL_DISTANCE, 0);
                 mUserInterface.updateRouteInfo(speed, passedDistance, totalDistance);
+
+                // Aktuelle Spoof-Position immer aktuell halten
+                double lat = intent.getDoubleExtra(RouteSpooferService.UI_SPOOF_LAT, 0d);
+                double lon = intent.getDoubleExtra(RouteSpooferService.UI_SPOOF_LON, 0d);
+                if (lat != 0d) { mSpoofedLat = lat; mSpoofedLon = lon; }
             }
         };
         context.registerReceiver(updateUIReciver, filter);
@@ -371,6 +381,7 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
         mUserInterface.toggleEditButton(View.GONE);
         mUserInterface.enableStop(View.GONE);
         mUserInterface.lockSearchBar(false);
+        mUserInterface.toggleContinueRoute(View.GONE);
         isRoute = false;
 
         removeAllRoutes();
@@ -556,124 +567,128 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
 
 
 
-        @Override
-        public void onRoute(Intent data) {
-            double sourceLat  = data.getDoubleExtra(SpoofingPlaceInfo.ORIGIN_LAT, 0d);
-            double sourceLong = data.getDoubleExtra(SpoofingPlaceInfo.ORIGIN_LNG, 0d);
-            double destLat    = data.getDoubleExtra(SpoofingPlaceInfo.DEST_LAT, 0d);
-            double destLong   = data.getDoubleExtra(SpoofingPlaceInfo.DEST_LNG, 0d);
+    @Override
+    public void onRoute(Intent data) {
+        double sourceLat  = data.getDoubleExtra(SpoofingPlaceInfo.ORIGIN_LAT, 0d);
+        double sourceLong = data.getDoubleExtra(SpoofingPlaceInfo.ORIGIN_LNG, 0d);
+        double destLat    = data.getDoubleExtra(SpoofingPlaceInfo.DEST_LAT, 0d);
+        double destLong   = data.getDoubleExtra(SpoofingPlaceInfo.DEST_LNG, 0d);
 
-            mUserInterface.setWhereToAddress(data.getStringExtra(SpoofingPlaceInfo.DEST_ADDRESS));
-            ERouteTransport transport = (ERouteTransport) data.getSerializableExtra(SpoofingPlaceInfo.TRANSPORT);
+        mUserInterface.setWhereToAddress(data.getStringExtra(SpoofingPlaceInfo.DEST_ADDRESS));
+        ERouteTransport transport = (ERouteTransport) data.getSerializableExtra(SpoofingPlaceInfo.TRANSPORT);
 
-            // Zwischenstopps auslesen
-            List<GeoPoint> waypoints = new ArrayList<>();
-            double[] wpLats = data.getDoubleArrayExtra(SpoofingPlaceInfo.WAYPOINTS_LATS);
-            double[] wpLons = data.getDoubleArrayExtra(SpoofingPlaceInfo.WAYPOINTS_LONS);
-            if (wpLats != null && wpLons != null) {
-                for (int i = 0; i < Math.min(wpLats.length, wpLons.length); i++) {
-                    waypoints.add(new GeoPoint(wpLats[i], wpLons[i]));
-                }
+        // Zwischenstopps auslesen
+        List<GeoPoint> waypoints = new ArrayList<>();
+        double[] wpLats = data.getDoubleArrayExtra(SpoofingPlaceInfo.WAYPOINTS_LATS);
+        double[] wpLons = data.getDoubleArrayExtra(SpoofingPlaceInfo.WAYPOINTS_LONS);
+        if (wpLats != null && wpLons != null) {
+            for (int i = 0; i < Math.min(wpLats.length, wpLons.length); i++) {
+                waypoints.add(new GeoPoint(wpLats[i], wpLons[i]));
+            }
+        }
+
+        RouteBuilder builder = new RouteBuilder(
+                mActivity,
+                sourceLat, sourceLong,
+                destLat, destLong,
+                transport,
+                waypoints,
+                null
+        );
+
+        builder.build(new RouteBuilder.IRouteBuilder() {
+            @Override
+            public void prepare() {
+                mUserInterface.inflateProgressLayout(view -> {
+                    builder.cancel();
+                    mUserInterface.removeProgressLayout();
+                    if (RouteManager.routes.size() >= 2)
+                        removeLatestRoute();
+                    else
+                        removeAllRoutes();
+                });
             }
 
-            RouteBuilder builder = new RouteBuilder(
-                    mActivity,
-                    sourceLat, sourceLong,
-                    destLat, destLong,
-                    transport,
-                    waypoints,
-                    null
-            );
+            @Override
+            public void onRouteBuilt(ArrayList<GeoPoint> points,
+                                     ArrayList<Integer> speedLimits,
+                                     double sourceLat, double sourceLong,
+                                     double destLat,   double destLong,
+                                     double distance,  ERouteTransport transport) {
+                mUserInterface.lockSearchBar(true);
+                mUserInterface.removeProgressLayout();
+                PrettyToast.show(mActivity, mActivity.getString(R.string.route_built), R.drawable.ic_route);
 
-            builder.build(new RouteBuilder.IRouteBuilder() {
-                @Override
-                public void prepare() {
-                    mUserInterface.inflateProgressLayout(view -> {
-                        builder.cancel();
-                        mUserInterface.removeProgressLayout();
-                        if (RouteManager.routes.size() >= 2)
-                            removeLatestRoute();
-                        else
-                            removeAllRoutes();
-                    });
-                }
+                double distancePoly = MapUtil.drawPath(mMap, points);
+                mDistance += distancePoly;
 
-                @Override
-                public void onRouteBuilt(ArrayList<GeoPoint> points,
-                                         ArrayList<Integer> speedLimits,
-                                         double sourceLat, double sourceLong,
-                                         double destLat,   double destLong,
-                                         double distance,  ERouteTransport transport) {
-                    mUserInterface.lockSearchBar(true);
-                    mUserInterface.removeProgressLayout();
-                    PrettyToast.show(mActivity, mActivity.getString(R.string.route_built), R.drawable.ic_route);
+                MultipleRoutesInfo multipleRoutesInfo = new MultipleRoutesInfo();
+                multipleRoutesInfo.setRoute(points);
+                if (speedLimits != null) multipleRoutesInfo.setSpeedLimits(speedLimits);
+                multipleRoutesInfo.setDistance(distancePoly);
+                multipleRoutesInfo.setTransport(transport);
+                multipleRoutesInfo.setSpeed(-1);
+                multipleRoutesInfo.setSpeedDiff(-1);
+                multipleRoutesInfo.setStartingPauseTime(-1);
 
-                    double distancePoly = MapUtil.drawPath(mMap, points);
-                    mDistance += distancePoly;
+                RouteManager.routes.add(multipleRoutesInfo);
+                isRoute = true;
 
-                    MultipleRoutesInfo multipleRoutesInfo = new MultipleRoutesInfo();
-                    multipleRoutesInfo.setRoute(points);
-                    if (speedLimits != null) multipleRoutesInfo.setSpeedLimits(speedLimits);
-                    multipleRoutesInfo.setDistance(distancePoly);
-                    multipleRoutesInfo.setTransport(transport);
-                    multipleRoutesInfo.setSpeed(-1);
-                    multipleRoutesInfo.setSpeedDiff(-1);
-                    multipleRoutesInfo.setStartingPauseTime(-1);
+                SpoofingPlaceInfo.sourceLat = sourceLat;
+                SpoofingPlaceInfo.sourceLng = sourceLong;
+                SpoofingPlaceInfo.destLat   = destLat;
+                SpoofingPlaceInfo.destLng   = destLong;
+                SpoofingPlaceInfo.transport = transport;
 
-                    RouteManager.routes.add(multipleRoutesInfo);
-                    isRoute = true;
-
-                    SpoofingPlaceInfo.sourceLat = sourceLat;
-                    SpoofingPlaceInfo.sourceLng = sourceLong;
-                    SpoofingPlaceInfo.destLat   = destLat;
-                    SpoofingPlaceInfo.destLng   = destLong;
-                    SpoofingPlaceInfo.transport = transport;
-
-                    AsyncGeocoder geocoder = new AsyncGeocoder(mActivity);
-                    geocoder.getLocationAddress(sourceLat, sourceLong, new AsyncGeocoder.Callback() {
-                        @Override
-                        public void onSuccess(List<Address> locations) {
-                            String name = locations.get(0).getAddressLine(0);
-                            SpoofingPlaceInfo.originAddress = name;
-                            SpoofingPlaceInfo.address       = name;
-                        }
-                        @Override
-                        public void onError() {
-                            String fallback = String.format("%s, %s", sourceLat, sourceLong);
-                            SpoofingPlaceInfo.originAddress = fallback;
-                            SpoofingPlaceInfo.address       = fallback;
-                        }
-                    });
-
-                    SpoofingPlaceInfo.destAddress = mUserInterface.getWhereToAddress();
-                    multipleRoutesInfo.setAddress(mUserInterface.getWhereToAddress());
-
-                    setRouteOriginDestMarkers(multipleRoutesInfo);
-                    mUserInterface.toggleRemoveRoute(View.VISIBLE);
-                    mUserInterface.setAddMoreRoute(View.VISIBLE);
-
-                    if (RouteManager.routes.size() >= 2) {
-                        RouteSettingsActivity.startActivity(mActivity, -1, -1,
-                                distance, true, true, RouteSettingsPresenter.ANOTHER_ROUTE_ADDED);
+                AsyncGeocoder geocoder = new AsyncGeocoder(mActivity);
+                geocoder.getLocationAddress(sourceLat, sourceLong, new AsyncGeocoder.Callback() {
+                    @Override
+                    public void onSuccess(List<Address> locations) {
+                        String name = locations.get(0).getAddressLine(0);
+                        SpoofingPlaceInfo.originAddress = name;
+                        SpoofingPlaceInfo.address       = name;
                     }
-                    mMap.invalidate();
-                }
+                    @Override
+                    public void onError() {
+                        String fallback = String.format("%s, %s", sourceLat, sourceLong);
+                        SpoofingPlaceInfo.originAddress = fallback;
+                        SpoofingPlaceInfo.address       = fallback;
+                    }
+                });
 
-                @Override
-                public void onRouteError(ArrayList<GeoPoint> points,
-                                         double sourceLat, double sourceLong,
-                                         double destLat,   double destLong,
-                                         double distance,  ERouteTransport transport) {
-                    PrettyToast.show(mActivity, mActivity.getString(R.string.failed_to_build_route), R.drawable.ic_route);
-                    onRouteBuilt(points, null, sourceLat, sourceLong, destLat, destLong, distance, transport);
-                }
+                SpoofingPlaceInfo.destAddress = mUserInterface.getWhereToAddress();
+                multipleRoutesInfo.setAddress(mUserInterface.getWhereToAddress());
 
-                @Override
-                public void captchaResponse() {
-                    mUserInterface.removeProgressLayout();
+                setRouteOriginDestMarkers(multipleRoutesInfo);
+                mUserInterface.toggleRemoveRoute(View.VISIBLE);
+                mUserInterface.setAddMoreRoute(View.VISIBLE);
+
+                // Button wieder sichtbar machen — war durch setRoutingMode() versteckt
+                // (wichtig für "Route ändern"-Flow, damit RouteSettingsActivity aufgerufen werden kann)
+                mUserInterface.startSpoofingVisibility(View.VISIBLE);
+
+                if (RouteManager.routes.size() >= 2) {
+                    RouteSettingsActivity.startActivity(mActivity, -1, -1,
+                            distance, true, true, RouteSettingsPresenter.ANOTHER_ROUTE_ADDED);
                 }
-            });
-        }
+                mMap.invalidate();
+            }
+
+            @Override
+            public void onRouteError(ArrayList<GeoPoint> points,
+                                     double sourceLat, double sourceLong,
+                                     double destLat,   double destLong,
+                                     double distance,  ERouteTransport transport) {
+                PrettyToast.show(mActivity, mActivity.getString(R.string.failed_to_build_route), R.drawable.ic_route);
+                onRouteBuilt(points, null, sourceLat, sourceLong, destLat, destLong, distance, transport);
+            }
+
+            @Override
+            public void captchaResponse() {
+                mUserInterface.removeProgressLayout();
+            }
+        });
+    }
 
     @Override
     public void onDestroy() {
@@ -682,17 +697,73 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
         removeAllRoutes();
     }
 
+    /**
+     * Entfernt nur Karten-Overlays (Polyline, Marker) ohne den Service zu stoppen/unbinden.
+     * Wird von continueRoute() genutzt um den AIDL-Binder am Leben zu lassen.
+     */
+    private void clearRouteOverlaysOnly() {
+        if (RouteManager.routes == null || RouteManager.routes.isEmpty()) return;
+
+        // Alle Polylines und Marker von der Karte entfernen
+        while (RouteManager.routes.size() >= 2)
+            removeLatestRoute();
+
+        int latestRoute = RouteManager.getLatestElement();
+        removeRouteMarkers(latestRoute);
+        RouteManager.routes.clear();
+
+        spoofingPlaceInfo.removeRoute();
+        mUserInterface.setAddMoreRoute(View.GONE);
+        mUserInterface.toggleRemoveRoute(View.GONE);
+        mUserInterface.setWhereToAddress(mContext.getString(R.string.where_to));
+        mDistance = -1;
+        // KEIN: enableStop(GONE), lockSearchBar(false), unbindService()
+        // Service und Binding bleiben aktiv!
+    }
+
+    public void continueRoute() {
+        if (mSpoofedLat == 0d && mSpoofedLon == 0d) {
+            mSpoofedLat = mMap.getMapCenter().getLatitude();
+            mSpoofedLon = mMap.getMapCenter().getLongitude();
+        }
+
+        // Service PAUSIEREN — Binding und sService bleiben aktiv!
+        // removeAllRoutes() würde unbindService() aufrufen → AIDL-Binder tot
+        // → attachRoutes() würde mit DeadObjectException scheitern
+        mServiceControl.setPause(RouteSettingsPresenter.sService, true);
+        mUserInterface.setPauseIcon(true);
+        mUserInterface.toggleContinueRoute(View.GONE);
+
+        // Nur Karten-Overlays entfernen, Service/Binding unangetastet
+        clearRouteOverlaysOnly();
+
+        mUserInterface.enableStop(View.VISIBLE);
+        mUserInterface.lockSearchBar(true);
+
+        mMap.getController().animateTo(new GeoPoint(mSpoofedLat, mSpoofedLon));
+
+        String originAddress = String.format("%.6f, %.6f", mSpoofedLat, mSpoofedLon);
+        SearchActivity.startActivity(mActivity, originAddress,
+                mSpoofedLat, mSpoofedLon, false, null);
+    }
+
     @Override
     public void onMenu() {
         mUserInterface.openMenu(true);
     }
 
     public void setRoutingMode() {
+        // Pause aufheben (wurde durch "Route ändern" gesetzt)
+        if (RouteSettingsPresenter.sService != null) {
+            mServiceControl.setPause(RouteSettingsPresenter.sService, false);
+        }
+        mUserInterface.setPauseIcon(false);
         mUserInterface.setRouteInfo(View.VISIBLE);
         mUserInterface.startSpoofingVisibility(View.GONE);
         mUserInterface.enablePause(View.VISIBLE);
         mUserInterface.toggleRemoveRoute(View.GONE);
         mUserInterface.enableStop(View.VISIBLE);
+        mUserInterface.toggleContinueRoute(View.VISIBLE);
         mUserInterface.setAddMoreRoute(View.GONE);
         if (!LocationServices.isLocationEnabled(mContext))
             mUserInterface.setLocationDisabledNotification(View.VISIBLE);

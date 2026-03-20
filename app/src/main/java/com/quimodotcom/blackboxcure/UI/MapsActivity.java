@@ -127,6 +127,9 @@ public class MapsActivity extends Edge2EdgeActivity implements MapsImpl.UIImpl, 
         mAddMoreRoute = findViewById(R.id.add_more_points);
         mRestoreLocation = findViewById(R.id.restore_location_button);
 
+        MaterialButton mContinueRouteButton = findViewById(R.id.continue_route_button);
+        mContinueRouteButton.setOnClickListener(v -> mPresenter.continueRoute());
+
         mJoystickMessage = findViewById(R.id.joystick_mode_message);
 
         mPauseContainer.setOnClickListener(view -> mPresenter.handlePause());
@@ -505,6 +508,12 @@ public class MapsActivity extends Edge2EdgeActivity implements MapsImpl.UIImpl, 
     @Override
     public void toggleEditButton(int show) {
         mEditContainer.setVisibility(show);
+    }
+
+    @Override
+    public void toggleContinueRoute(int visibility) {
+        MaterialButton btn = findViewById(R.id.continue_route_button);
+        if (btn != null) btn.setVisibility(visibility);
     }
 
     @Override
