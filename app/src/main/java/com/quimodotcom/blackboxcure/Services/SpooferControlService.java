@@ -38,6 +38,7 @@ public class SpooferControlService extends Service implements SpooferControlOver
 
     private SpooferControlOverlay mOverlay;
     private BroadcastReceiver     mSpeedReceiver;
+    private BroadcastReceiver     mWaypointReceiver;
 
     @Override
     public void onCreate() {
@@ -47,28 +48,42 @@ public class SpooferControlService extends Service implements SpooferControlOver
         mOverlay = new SpooferControlOverlay(this, this);
         mOverlay.show();
 
-        // Geschwindigkeits-Updates aus laufendem Service empfangen
+        // Geschwindigkeits-Updates empfangen
         mSpeedReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                int speed    = intent.getIntExtra(KEY_SPEED_KMH, -1);
-                int base    = intent.getIntExtra(MainServiceControl.KEY_BASE_SPEED, -1);  // ← NEU
+                int speed   = intent.getIntExtra(KEY_SPEED_KMH, -1);
+                int base    = intent.getIntExtra(MainServiceControl.KEY_BASE_SPEED, -1);
                 boolean paused = intent.getBooleanExtra(KEY_IS_PAUSED, false);
                 if (mOverlay != null) {
                     if (speed >= 0) mOverlay.updateSpeed(speed);
-                    if (base  >= 0) mOverlay.updateBaseSpeed(base);                        // ← NEU
+                    if (base  >= 0) mOverlay.updateBaseSpeed(base);
                     mOverlay.setPaused(paused);
                 }
             }
         };
-        //registerReceiver(mSpeedReceiver, new IntentFilter(ACTION_SPEED_UPDATE));
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(mSpeedReceiver,
                     new IntentFilter(ACTION_SPEED_UPDATE),
                     Context.RECEIVER_NOT_EXPORTED);
         } else {
             registerReceiver(mSpeedReceiver, new IntentFilter(ACTION_SPEED_UPDATE));
+        }
+
+        // Waypoint-Reached empfangen → Overlay aufklappen und Button zeigen
+        mWaypointReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (mOverlay != null) mOverlay.setWaypointWaiting(true);
+            }
+        };
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(mWaypointReceiver,
+                    new IntentFilter(com.quimodotcom.blackboxcure.Services.RouteSpooferService.ACTION_WAYPOINT_REACHED),
+                    Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(mWaypointReceiver,
+                    new IntentFilter(com.quimodotcom.blackboxcure.Services.RouteSpooferService.ACTION_WAYPOINT_REACHED));
         }
     }
 
@@ -82,6 +97,7 @@ public class SpooferControlService extends Service implements SpooferControlOver
         super.onDestroy();
         if (mOverlay != null) mOverlay.dismiss();
         try { unregisterReceiver(mSpeedReceiver); } catch (IllegalArgumentException ignored) {}
+        try { unregisterReceiver(mWaypointReceiver); } catch (IllegalArgumentException ignored) {}
         stopForeground(true);
     }
 
@@ -108,6 +124,13 @@ public class SpooferControlService extends Service implements SpooferControlOver
     @Override
     public void onClose() {
         stopSelf();
+    }
+
+    @Override
+    public void onWaypointContinue() {
+        // Broadcast an RouteSpooferService → waitingForUserAtWaypoint = false
+        sendBroadcast(new Intent(
+                com.quimodotcom.blackboxcure.Services.RouteSpooferService.ACTION_WAYPOINT_CONTINUE));
     }
 
     // ── Notification ─────────────────────────────────────────────

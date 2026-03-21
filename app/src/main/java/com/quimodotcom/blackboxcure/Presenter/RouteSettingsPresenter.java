@@ -43,7 +43,8 @@ public class RouteSettingsPresenter implements RouteSettingsImpl.Presenter {
 
     private float elevation;
     private float elevationDiff;
-    private boolean isClosedRoute;
+    private int mLoopMode  = MultipleRoutesInfo.LOOP_OFF;
+    private int mLoopCount = 0;
 
     private final boolean mIsRoute;
     private final boolean mAddMoreRoutes;
@@ -114,20 +115,22 @@ public class RouteSettingsPresenter implements RouteSettingsImpl.Presenter {
     }
 
     @Override
-    public void onContinueClick(int speed, int difference, float elevation, float elevationDiff, boolean isClosedRoute, boolean followSpeedLimits, boolean smoothTurns) {
+    public void onContinueClick(int speed, int difference, float elevation, float elevationDiff,
+                                int loopMode, int loopCount, boolean smoothTurns,
+                                int waypointNotifyMode) {
         if (!mAddMoreRoutes) {
             saveSpeedSettings(speed, difference);
             saveElevation(elevation, elevationDiff);
-            this.isClosedRoute = isClosedRoute;
+            this.mLoopMode  = loopMode;
+            this.mLoopCount = loopCount;
         }
-        // if followSpeedLimits is true, speed is automatically handled, so difference check is fine to pass
-        if (followSpeedLimits || checkDifference(speed, difference)) {
-            // Apply speed settings directly to route manager if follow speed limits is requested.
-            // RouteSpooferService will read this from RouteManager.
+        if (checkDifference(speed, difference)) {
             if (mIsRoute && !RouteManager.routes.isEmpty()) {
                 MultipleRoutesInfo currentRoute = RouteManager.routes.get(RouteManager.routes.size() - 1);
-                currentRoute.setFollowSpeedLimits(followSpeedLimits);
+                currentRoute.setLoopMode(loopMode);
+                currentRoute.setLoopCount(loopCount);
                 currentRoute.setSmoothTurns(smoothTurns);
+                currentRoute.setWaypointNotifyMode(waypointNotifyMode);
             }
             startMocking();
         }
@@ -205,8 +208,10 @@ public class RouteSettingsPresenter implements RouteSettingsImpl.Presenter {
                 try {
                     sService.attachRoutes(RouteManager.routes);
                     sService.setPause(false);
+                    android.util.Log.d(TAG, "attachRoutes() erfolgreich, " + RouteManager.routes.size() + " Routen");
                 } catch (Exception e) {
-                    android.util.Log.e(TAG, "attachRoutes failed", e);
+                    android.util.Log.e(TAG, "attachRoutes() FEHLGESCHLAGEN: " + e.getMessage(), e);
+                    // Binder tot → normal starten
                 }
                 mActivity.setResult(Activity.RESULT_OK);
                 mActivity.finish();
@@ -218,7 +223,8 @@ public class RouteSettingsPresenter implements RouteSettingsImpl.Presenter {
                     .putExtra(BlackBoxCureApp.DISTANCE, distance)
                     .putExtra(ELEVATION, elevation)
                     .putExtra(ELEVATION_DIFF, elevationDiff)
-                    .putExtra(SpoofingPlaceInfo.CLOSED_ROUTE_MOTION_INVERT, isClosedRoute)
+                    .putExtra(RouteSpooferService.KEY_LOOP_MODE,  mLoopMode)
+                    .putExtra(RouteSpooferService.KEY_LOOP_COUNT, mLoopCount)
                     .putExtra(SPEED_DIFF, speedDiff)
                     .putExtra("origin_timeout", originTimeout)
                     .putExtra("dest_timeout", destTimeout)

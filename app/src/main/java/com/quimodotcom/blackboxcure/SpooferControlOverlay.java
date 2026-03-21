@@ -39,15 +39,17 @@ public class SpooferControlOverlay {
     private LinearLayout mExpanded;
     private TextView     mPauseBtn;
     private TextView     mSpeedLabel;
+    private TextView     mWaypointContinueBtn;
 
     private boolean mIsPaused   = false;
-    private int     mCurrentSpeedKmh = -1; // -1 = unbekannt
+    private int     mCurrentSpeedKmh = -1;
     private TextView mBaseSpeedLabel;
 
     public interface Callbacks {
         void onPauseToggle(boolean pause);
         void onSpeedDelta(int deltaKmh);
         void onClose();
+        void onWaypointContinue();
     }
 
     public SpooferControlOverlay(Context context, Callbacks callbacks) {
@@ -85,6 +87,7 @@ public class SpooferControlOverlay {
         mPauseBtn   = mRoot.findViewById(R.id.overlay_pause_btn);
         mSpeedLabel = mRoot.findViewById(R.id.overlay_speed_label);
         mBaseSpeedLabel = mRoot.findViewById(R.id.overlay_base_speed_label);
+        mWaypointContinueBtn = mRoot.findViewById(R.id.overlay_waypoint_continue);
 
         setupDrag();
         setupClicks();
@@ -167,6 +170,13 @@ public class SpooferControlOverlay {
         });
 
         mRoot.findViewById(R.id.overlay_close_btn).setOnClickListener(v -> mCallbacks.onClose());
+
+        if (mWaypointContinueBtn != null) {
+            mWaypointContinueBtn.setOnClickListener(v -> {
+                mCallbacks.onWaypointContinue();
+                setWaypointWaiting(false);
+            });
+        }
     }
 
     // ── Öffentliche Update-Methoden ──────────────────────────────
@@ -211,5 +221,18 @@ public class SpooferControlOverlay {
     public void updateBaseSpeed(int baseKmh) {
         mBaseSpeedLabel.post(() ->
                 mBaseSpeedLabel.setText("Basis: " + baseKmh + " km/h"));
+    }
+
+    /** Zeigt/versteckt den Waypoint-„Weiter"-Button im Overlay */
+    public void setWaypointWaiting(boolean waiting) {
+        if (mWaypointContinueBtn == null) return;
+        mRoot.post(() -> {
+            mWaypointContinueBtn.setVisibility(waiting ? View.VISIBLE : View.GONE);
+            // Overlay aufklappen damit der Button sichtbar ist
+            if (waiting) {
+                mCollapsed.setVisibility(View.GONE);
+                mExpanded.setVisibility(View.VISIBLE);
+            }
+        });
     }
 }

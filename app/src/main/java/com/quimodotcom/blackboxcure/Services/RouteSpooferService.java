@@ -6,11 +6,16 @@ import android.content.BroadcastReceiver;
 import android.content.IntentFilter;
 import android.content.Context;
 import android.location.Location;
+import android.media.RingtoneManager;
+import android.media.Ringtone;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.RemoteException;
 import android.os.SystemClock;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.os.Build;
 import android.util.Log;
 
@@ -47,6 +52,10 @@ public class RouteSpooferService extends Service {
     public static final String KEY_DEFAULT_UNIT     = "default_unit";
     public static final String KEY_BRAKE_AT_TURINING = "brake_at_turning";
 
+    public static final String ACTION_WAYPOINT_REACHED  = "com.quimodotcom.blackboxcure.waypoint_reached";
+    public static final String ACTION_WAYPOINT_CONTINUE = "com.quimodotcom.blackboxcure.waypoint_continue";
+    public static final String KEY_WAYPOINT_INDEX       = "waypoint_index";
+
     public static final String UI_SPEED_KEY        = "ui_speed_key";
     public static final String UI_PASSED_DISTANCE  = "ui_passed_distance";
     public static final String UI_TOTAL_DISTANCE   = "ui_total_distance";
@@ -75,13 +84,21 @@ public class RouteSpooferService extends Service {
     private double mTotalDistance;
     private double mPassedDistance;
 
-    private boolean isClosedRoute     = false;
+    public static final String KEY_LOOP_MODE  = "loop_mode";
+    public static final String KEY_LOOP_COUNT = "loop_count";
+
+    private int  mLoopMode  = MultipleRoutesInfo.LOOP_OFF;
+    private int  mLoopCount = 0;   // 0 = endlos
+    private int  mLoopsDone = 0;   // Zähler vollständiger Durchgänge
     private boolean mDeviation;
     private boolean mBrakeAtTurning;
     private boolean isMockLocationsEnabled;
     private boolean isSystemApp;
     private volatile boolean isPaused;
-    private volatile boolean mSpeedManualOverride = false; // NEU
+    private volatile boolean mSpeedManualOverride = false;
+    private volatile boolean waitingForUserAtWaypoint = false;
+
+    private BroadcastReceiver mWaypointContinueReceiver;
     private volatile int mBaseSpeed = 0;
     private boolean waitingStart;
 
@@ -91,14 +108,13 @@ public class RouteSpooferService extends Service {
 
     private int                        mRouteSlice  = 0;
     private ArrayList<GeoPoint>[]      mSlices;
-    private ArrayList<Integer>[]       mSlicesSpeeds;
     private ArrayList<GeoPoint>        mSpoofRoute       = new ArrayList<>();
-    private ArrayList<Integer>         mSpoofRouteSpeeds = new ArrayList<>();
     private ArrayList<MultipleRoutesInfo> mRoutes        = new ArrayList<>();
 
     private static class SourceData {
         static double  totalDistance;
-        static boolean isClosedRoute;
+        static int  loopMode;
+        static int  loopCount;
     }
 
     private boolean mBound = false;
@@ -171,6 +187,21 @@ public class RouteSpooferService extends Service {
                     new IntentFilter(MainServiceControl.ACTION_OVERLAY_CONTROL));
         }
 
+        // Waypoint-Continue Receiver (Nutzer drückt "Weiter" in App oder Overlay)
+        mWaypointContinueReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                waitingForUserAtWaypoint = false;
+            }
+        };
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(mWaypointContinueReceiver,
+                    new IntentFilter(ACTION_WAYPOINT_CONTINUE),
+                    Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(mWaypointContinueReceiver,
+                    new IntentFilter(ACTION_WAYPOINT_CONTINUE));
+        }
 
         mAccuracy       = intent.getFloatExtra(KEY_ACCURACY, 10);
         mUpdatesDelay   = intent.getIntExtra(KEY_UPDATES_DELAY, 1000);
@@ -191,8 +222,11 @@ public class RouteSpooferService extends Service {
         waitingStart = mOriginDelay > 0;
 
         SourceData.totalDistance = mTotalDistance;
-        SourceData.isClosedRoute = intent.getBooleanExtra(
-                SpoofingPlaceInfo.CLOSED_ROUTE_MOTION_INVERT, false);
+        SourceData.loopMode  = intent.getIntExtra(KEY_LOOP_MODE,  MultipleRoutesInfo.LOOP_OFF);
+        SourceData.loopCount = intent.getIntExtra(KEY_LOOP_COUNT, 0);
+        mLoopMode  = SourceData.loopMode;
+        mLoopCount = SourceData.loopCount;
+        mLoopsDone = 0;
 
         cast();
         if (mSpeed <= 8) mBrakeAtTurning = false;
@@ -230,7 +264,7 @@ public class RouteSpooferService extends Service {
                 mPassedDistance = 0;
                 mRouteSlice     = 0;
 
-                // Neues Runnable + Thread erstellen
+                // Neues Runnable + Thread erstellen (setzt auch mTriggeredWaypoints zurück)
                 mainRouteRunnable = new MainRouteRunnable();
                 mainRouteThread   = new Thread(mainRouteRunnable);
                 isPaused          = false;
@@ -268,6 +302,10 @@ public class RouteSpooferService extends Service {
             try { unregisterReceiver(mOverlayControlReceiver); }
             catch (IllegalArgumentException ignored) {}
         }
+        if (mWaypointContinueReceiver != null) {
+            try { unregisterReceiver(mWaypointContinueReceiver); }
+            catch (IllegalArgumentException ignored) {}
+        }
         stopForeground(true);
         MockLocProvider.removeProviders();
     }
@@ -296,28 +334,15 @@ public class RouteSpooferService extends Service {
         mRoutes = (ArrayList<MultipleRoutesInfo>) routes;
         try {
             mSlices = new ArrayList[mRoutes.size()];
-            mSlicesSpeeds = new ArrayList[mRoutes.size()];
             mRouteSlice = 0;
             for (int i = 0; i < mRoutes.size(); i++) {
                 mSlices[i] = new ArrayList<>();
                 MultipleRoutesInfo routeInfo = mRoutes.get(i);
                 List<GeoPoint> points = routeInfo.getRoute();
-                if (routeInfo.getFollowSpeedLimits() && routeInfo.getSpeedLimits() != null) {
-                    mSlicesSpeeds[i] = new ArrayList<>();
-                    RouteManager.startMotion(points, routeInfo.getSpeedLimits(), mSlices[i], mSlicesSpeeds[i], routeInfo.getSmoothTurns());
-                } else {
-                    RouteManager.startMotion(points, null, mSlices[i], null, routeInfo.getSmoothTurns());
-                }
-                if (isClosedRoute) {
-                    isClosedRoute = false;
-                    Collections.reverse(mSlices[i]);
-                    if (mSlicesSpeeds[i] != null) Collections.reverse(mSlicesSpeeds[i]);
-                }
+                RouteManager.startMotion(points, mSlices[i], routeInfo.getSmoothTurns());
             }
         } catch (Exception e) { e.printStackTrace(); }
         mSpoofRoute = mSlices[mRouteSlice];
-        mSpoofRouteSpeeds = (mSlicesSpeeds != null && mSlicesSpeeds.length > mRouteSlice)
-                ? mSlicesSpeeds[mRouteSlice] : null;
     }
 
     private void updateUI(float speed, double distance) {
@@ -340,6 +365,39 @@ public class RouteSpooferService extends Service {
         double  altitude;
     }
 
+    /** Ton/Vibration je nach eingestelltem Modus an Zwischenzielen */
+    private void notifyWaypointReached() {
+        int mode = 0;
+        if (!mRoutes.isEmpty()) {
+            mode = mRoutes.get(0).getWaypointNotifyMode();
+        }
+        final boolean doSound   = (mode == 1 || mode == 3);
+        final boolean doVibrate = (mode == 2 || mode == 3);
+
+        // Muss auf dem Main-Thread laufen
+        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+            if (doSound) {
+                try {
+                    Uri uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+                    Ringtone r = RingtoneManager.getRingtone(getApplicationContext(), uri);
+                    if (r != null) r.play();
+                } catch (Exception e) {
+                    Log.e("RouteSpoofer", "Sound failed", e);
+                }
+            }
+            if (doVibrate) {
+                Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+                if (v != null) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        v.vibrate(VibrationEffect.createWaveform(new long[]{0, 400, 200, 400}, -1));
+                    } else {
+                        v.vibrate(new long[]{0, 400, 200, 400}, -1);
+                    }
+                }
+            }
+        });
+    }
+
     MainRouteRunnable mainRouteRunnable = new MainRouteRunnable();
     Thread mainRouteThread = new Thread(mainRouteRunnable);
 
@@ -353,6 +411,10 @@ public class RouteSpooferService extends Service {
         private int     arrayRunSpeed;
         private int     brakeSpeed;
         private boolean isNeedBrake;
+        /** Welche Waypoints bereits ausgelöst wurden (Index in mRoutes.get(0).getWaypoints()) */
+        private final java.util.Set<Integer> mTriggeredWaypoints = new java.util.HashSet<>();
+        /** Radius in Metern innerhalb dem ein Waypoint als erreicht gilt */
+        private static final float WAYPOINT_TRIGGER_RADIUS_M = 40f;
 
         // ── GPS-Positions-Drift ───────────────────────────────────
         private double driftLat  = 0.0;
@@ -369,13 +431,8 @@ public class RouteSpooferService extends Service {
         public void run() {
             if (mSpoofRoute == null || mSpoofRoute.isEmpty()) return;
 
-            float rSpeed;
-            if (mSpoofRouteSpeeds != null && arrayRunIndex >= 0 && arrayRunIndex < mSpoofRouteSpeeds.size()) {
-                rSpeed = mSpoofRouteSpeeds.get(arrayRunIndex);
-            } else {
-                rSpeed = mRandomizer.getRandomSpeed(mSpeed, mSpeedDiff);
-                if (mSpeedDiff != 0) rSpeed += Math.random() * mSpeedDiff;
-            }
+            float rSpeed = mRandomizer.getRandomSpeed(mSpeed, mSpeedDiff);
+            if (mSpeedDiff != 0) rSpeed += Math.random() * mSpeedDiff;
 
             float rElevation = (float) mCurrentStep.getAltitude();
             float rAccuracy  = mRandomizer.getAccuracy(mAccuracy);
@@ -383,7 +440,7 @@ public class RouteSpooferService extends Service {
 
             arrayRunSpeed = mRandomizer.getArrayRunSpeed((int) rSpeed, mUpdatesDelay);
 
-            if (!isPaused && !waitingStart) arrayRunIndex += arrayRunSpeed;
+            if (!isPaused && !waitingStart && !waitingForUserAtWaypoint) arrayRunIndex += arrayRunSpeed;
             if (arrayRunIndex >= mSpoofRoute.size() - 1) {
                 arrayRunIndex = mSpoofRoute.size() - 1;
                 if (mRouteSlice < mSlices.length - 1) {
@@ -399,6 +456,29 @@ public class RouteSpooferService extends Service {
             mCurrentStep.setLatitude(mSpoofRoute.get(arrayRunIndex).getLatitude());
             mCurrentStep.setLongitude(mSpoofRoute.get(arrayRunIndex).getLongitude());
             mCurrentStep.setAltitude(mSpoofRoute.get(arrayRunIndex).getAltitude());
+
+            // ── Waypoint-Proximity-Prüfung ──────────────────────
+            // Waypoints sind raw GeoPoints aus SearchActivity, kein Slice-Wechsel nötig
+            if (!waitingForUserAtWaypoint && !mRoutes.isEmpty()) {
+                ArrayList<GeoPoint> wps = mRoutes.get(0).getWaypoints();
+                for (int wi = 0; wi < wps.size(); wi++) {
+                    if (mTriggeredWaypoints.contains(wi)) continue;
+                    float[] dist = new float[1];
+                    android.location.Location.distanceBetween(
+                            mCurrentStep.getLatitude(), mCurrentStep.getLongitude(),
+                            wps.get(wi).getLatitude(), wps.get(wi).getLongitude(), dist);
+                    if (dist[0] <= WAYPOINT_TRIGGER_RADIUS_M) {
+                        mTriggeredWaypoints.add(wi);
+                        waitingForUserAtWaypoint = true;
+                        notifyWaypointReached();
+                        Intent wIntent = new Intent(ACTION_WAYPOINT_REACHED);
+                        wIntent.putExtra(KEY_WAYPOINT_INDEX, wi);
+                        sendBroadcast(wIntent);
+                        break;
+                    }
+                }
+            }
+            // ────────────────────────────────────────────────────
 
             int nextPosBearing = arrayRunIndex + 2;
             if (nextPosBearing >= mSpoofRoute.size() - 1) nextPosBearing = arrayRunIndex;
@@ -421,11 +501,16 @@ public class RouteSpooferService extends Service {
             setMockLocation(rSpeed == -1 ? 0 : rSpeed, rAccuracy,
                     bearing + (float) Math.random(), rElevation);
 
-            if (rSpeed == -1 && isClosedRoute) {
-                setRoute(mRoutes, isClosedRoute);
-                MultipleRoutesInfo routeInfo = mRoutes.get(0);
-                mSpeed = routeInfo.getSpeed(); mSpeedDiff = routeInfo.getSpeedDiff();
-                mElevation = routeInfo.getElevation(); mElevationDiff = routeInfo.getElevationDiff();
+            if (rSpeed == -1) {
+                // Ping-Pong: Route umkehren
+                Collections.reverse(mSpoofRoute);
+                mPassedDistance = 0; arrayRunSpeed = 0; arrayRunIndex = 0; isNeedBrake = false;
+                postDelayedJittered();
+                return;
+            }
+            if (rSpeed == -2) {
+                // Schleife: Route von vorn
+                setRoute(mRoutes, false);
                 mPassedDistance = 0; arrayRunSpeed = 0; arrayRunIndex = 0; isNeedBrake = false;
                 postDelayedJittered();
                 return;
@@ -467,8 +552,6 @@ public class RouteSpooferService extends Service {
         public void replaceRouteSlice() {
             mRouteSlice++;
             mSpoofRoute = mSlices[mRouteSlice];
-            mSpoofRouteSpeeds = (mSlicesSpeeds != null && mSlicesSpeeds.length > mRouteSlice)
-                    ? mSlicesSpeeds[mRouteSlice] : null;
             MultipleRoutesInfo routeInfo = mRoutes.get(mRouteSlice);
             if (!mSpeedManualOverride) {
                 mSpeed = routeInfo.getSpeed();
@@ -477,6 +560,13 @@ public class RouteSpooferService extends Service {
             mElevation = routeInfo.getElevation(); mElevationDiff = routeInfo.getElevationDiff();
             SystemClock.sleep(routeInfo.getStartingPauseTime());
             arrayRunSpeed = 0; arrayRunIndex = 0; isNeedBrake = false;
+
+            // Nutzer am Zwischenziel benachrichtigen und auf Bestätigung warten
+            waitingForUserAtWaypoint = true;
+            notifyWaypointReached();
+            Intent wi = new Intent(ACTION_WAYPOINT_REACHED);
+            wi.putExtra(KEY_WAYPOINT_INDEX, mRouteSlice);
+            sendBroadcast(wi);
         }
 
         private void setMockLocation(float speed, float accuracy, float bearing, float elevation) {
@@ -496,7 +586,22 @@ public class RouteSpooferService extends Service {
                 routeInfo.arrived = true;
                 speed = (float) ThreadLocalRandom.current().nextDouble(0, 0.3);
                 updateUI(speed, mTotalDistance);
-                if (SourceData.isClosedRoute) { isClosedRoute = !isClosedRoute; routeInfo.speed = -1; return routeInfo; }
+                if (SourceData.loopMode == MultipleRoutesInfo.LOOP_OFF) {
+                    // kein Loop → bleibt an B stehen
+                } else {
+                    mLoopsDone++;
+                    boolean limitReached = mLoopCount > 0 && mLoopsDone >= mLoopCount;
+                    if (limitReached) {
+                        // Limit erreicht → stoppen
+                        SourceData.loopMode = MultipleRoutesInfo.LOOP_OFF;
+                    } else if (SourceData.loopMode == MultipleRoutesInfo.LOOP_PINGPONG) {
+                        // Richtung umkehren
+                        routeInfo.speed = -1;
+                    } else if (SourceData.loopMode == MultipleRoutesInfo.LOOP_CIRCLE) {
+                        // Route von vorn
+                        routeInfo.speed = -2;
+                    }
+                }
                 double altitude = mCurrentStep.getAltitude() + ThreadLocalRandom.current().nextDouble(-1, +1);
                 GeoPoint drifted = applyStationaryDrift(mCurrentStep.getLatitude(), mCurrentStep.getLongitude());
                 mCurrentStep.setLatitude(drifted.getLatitude());
@@ -505,7 +610,7 @@ public class RouteSpooferService extends Service {
                 routeInfo.speed = speed; routeInfo.altitude = altitude;
                 return routeInfo;
             } else {
-                if (!isPaused && !waitingStart) {
+                if (!isPaused && !waitingStart && !waitingForUserAtWaypoint) {
                     mPassedDistance += Geometry.distance(
                             mSpoofRoute.get(arrayRunIndex - arrayRunSpeed).getLatitude(),
                             mSpoofRoute.get(arrayRunIndex - arrayRunSpeed).getLongitude(),

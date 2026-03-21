@@ -142,6 +142,20 @@
             android:text="✕  Schließen"
             android:textColor="#FF6666"
             android:textSize="13sp"/>
+
+        <!-- Erscheint nur wenn Service an Zwischenziel wartet -->
+        <TextView
+            android:id="@+id/overlay_waypoint_continue"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:background="@drawable/overlay_btn_bg"
+            android:gravity="center"
+            android:text="▶  Weiter (Zwischenziel)"
+            android:textColor="#66FF66"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:layout_marginTop="6dp"
+            android:visibility="gone"/>
     </LinearLayout>
 
 </FrameLayout>

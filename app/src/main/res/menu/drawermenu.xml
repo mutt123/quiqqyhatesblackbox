@@ -9,25 +9,5 @@
     <!--<item android:id="@+id/our_telegram" android:icon="@drawable/ic_telegram_24dp" android:title="@string/our_telegram" /> -->
     <!--<item android:id="@+id/rate_app" android:icon="@drawable/ic_star_black_24dp" android:title="@string/rate_app" /> -->
     <item android:id="@+id/about" android:icon="@drawable/ic_info_outline" android:title="@string/about_of_the_app" />
-    <item android:id="@+id/toggle_demap"
-        android:icon="@drawable/ic_location"
-        android:title="POI-Layer (demap.co)"
-        android:checkable="true"
-        android:checked="false" />
-    <item android:id="@+id/toggle_pokestops"
-        android:icon="@drawable/ic_location"
-        android:title="  ↳ Pokéstops"
-        android:checkable="true"
-        android:checked="true" />
-    <item android:id="@+id/toggle_gyms"
-        android:icon="@drawable/ic_location"
-        android:title="  ↳ Arenen"
-        android:checkable="true"
-        android:checked="true" />
-    <item android:id="@+id/toggle_stations"
-        android:icon="@drawable/ic_location"
-        android:title="  ↳ Kraftquellen"
-        android:checkable="true"
-        android:checked="true" />
 
 </menu>

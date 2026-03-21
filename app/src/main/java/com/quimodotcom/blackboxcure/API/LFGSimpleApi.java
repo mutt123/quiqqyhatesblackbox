@@ -98,7 +98,6 @@ public class LFGSimpleApi {
             public String error;
             public int    code;
             public ArrayList<GeoPoint>  result;
-            public ArrayList<Integer>   speedLimits; // null für Fußgänger/Fahrrad
             public double distance;
         }
 
@@ -206,7 +205,6 @@ public class LFGSimpleApi {
                         }
 
                         response.result      = points;
-                        response.speedLimits = null;
                         response.code        = CODE_SUCCESS;
 
                     } catch (Exception e) {

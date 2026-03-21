@@ -185,6 +185,8 @@
     <string name="traffic_side_title">Traffic side</string>
     <string name="change_route">Route ändern</string>
     <string name="delay_at_the_last_point">Delay at the last point:</string>
+    <string name="date_is_inaccurate">Inaccurate date</string>
+    <string name="adjust_clock">Adjust clock</string>
     <string name="date_is_inaccurate_summary">You phone date is inaccurate!\nAdjust your clock and try again.</string>
     <string name="our_telegram">Our Telegram</string>
     //neu drift
@@ -192,5 +194,51 @@
     <string name="enter_updates_drift_value">Random ±drift per update interval in milliseconds (e.g. 150)</string>
     <string name="tap_to_select_waypoint">Tippe zum Auswählen…</string>
     <string name="Zwischenstopp">Zwischenstopp</string>
+
+    <!-- Waypoint notify -->
+    <string name="waypoint_notify_label">Zwischenziel-Benachrichtigung:</string>
+    <string name="waypoint_reached_title">Zwischenziel erreicht</string>
+    <string name="waypoint_reached_continue">Weiter</string>
+    <string-array name="waypoint_notify_options">
+        <item>Keine</item>
+        <item>Ton</item>
+        <item>Vibration</item>
+        <item>Ton + Vibration</item>
+    </string-array>
+    <string-array name="waypoint_notify_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+    </string-array>
+
+    <!-- Gym Route -->
+    <string name="gym_route_title">Arena-Route</string>
+    <string name="gym_route_btn">Arena-Route</string>
+    <string name="gym_route_radius_label">Radius:</string>
+    <string name="gym_route_team_label">Team (nur Arenen mit freiem Platz):</string>
+    <string name="gym_team_all">Alle</string>
+    <string name="gym_team_neutral">Neutral</string>
+    <string name="gym_team_mystic">Mystic</string>
+    <string name="gym_team_valor">Valor</string>
+    <string name="gym_team_instinct">Instinct</string>
+    <string name="gym_route_start">Route erstellen</string>
+    <string name="gym_route_loading">Arenen werden geladen…</string>
+    <string name="gym_route_none_found">Keine passenden Arenen gefunden</string>
+    <string name="gym_route_demap_disabled">Bitte zuerst den POI-Layer (demap.co) aktivieren</string>
+
+    <string name="demap_category_title">POI Layer (demap.co)</string>
+    <string name="demap_enabled_title">POI Layer aktivieren</string>
+    <string name="demap_enabled_summary">Zeigt Pokéstops, Arenen und Kraftquellen auf der Karte</string>
+    <string name="demap_pokestops">Pokéstops</string>
+    <string name="demap_gyms">Arenen</string>
+    <string name="demap_stations">Kraftquellen</string>
+    <string name="loop_mode_label">Wiederholung</string>
+    <string name="loop_off">Aus (A → B, dann stopp)</string>
+    <string name="loop_pingpong">Ping-Pong (A → B → A → B …)</string>
+    <string name="loop_circle">Schleife (A → B, direkt zurück → A → B …)</string>
+    <string name="loop_count_label">Durchgänge:</string>
+    <string name="loop_count_hint">0</string>
+    <string name="loop_count_suffix">× (0 = endlos)</string>
 
 </resources>

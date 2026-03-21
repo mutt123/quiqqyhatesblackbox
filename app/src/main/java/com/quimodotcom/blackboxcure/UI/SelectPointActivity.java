@@ -36,6 +36,7 @@ import com.quimodotcom.blackboxcure.AsyncGeocoder;
 import com.quimodotcom.blackboxcure.ImageUtils;
 import com.quimodotcom.blackboxcure.BlackBoxCureApp;
 import com.quimodotcom.blackboxcure.MapLoader;
+import com.quimodotcom.blackboxcure.DemapOverlay;
 import com.quimodotcom.blackboxcure.MapUtil;
 import com.quimodotcom.blackboxcure.OnSingleClickListener;
 import com.quimodotcom.blackboxcure.Presenter.SearchPresenter;
@@ -53,6 +54,7 @@ public class SelectPointActivity extends Edge2EdgeActivity {
     private EditText addressLabel;
     private AsyncGeocoder geocoder;
     private InputMethodManager mKeyboard;
+    private DemapOverlay mDemapOverlay;
 
     @Override
     protected void onResume() {
@@ -76,6 +78,17 @@ public class SelectPointActivity extends Edge2EdgeActivity {
         MapLoader mapLoader = new MapLoader(this);
         mapLoader.load(mapView, findViewById(R.id.copyright_txt));
         geocoder = new AsyncGeocoder(this);
+
+        // DemapOverlay mit gespeichertem Status aus den App-Einstellungen
+        android.content.SharedPreferences demapPrefs =
+                androidx.preference.PreferenceManager.getDefaultSharedPreferences(this);
+        mDemapOverlay = new DemapOverlay(this, false);
+        mDemapOverlay.setEnabled(demapPrefs.getBoolean("demap_enabled",   false));
+        mDemapOverlay.setShowPokestops(demapPrefs.getBoolean("demap_pokestops", true));
+        mDemapOverlay.setShowGyms(demapPrefs.getBoolean("demap_gyms",     true));
+        mDemapOverlay.setShowStations(demapPrefs.getBoolean("demap_stations",  true));
+        mapView.getOverlays().add(mDemapOverlay);
+        if (mDemapOverlay.isEnabled()) mDemapOverlay.refresh(mapView);
 
         mKeyboard = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
 
@@ -178,6 +191,8 @@ public class SelectPointActivity extends Edge2EdgeActivity {
                         address = fallbackAddress;
                     }
                 });
+                if (mDemapOverlay != null && mDemapOverlay.isEnabled())
+                    mDemapOverlay.refresh(mapView);
                 return false;
             }
 

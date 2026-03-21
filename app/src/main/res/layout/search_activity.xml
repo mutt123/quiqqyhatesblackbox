@@ -94,7 +94,7 @@
         android:textSize="16sp" />
 
     <!-- „+ Zwischenstopp" Button -->
-    <EditText
+    <TextView
         android:id="@+id/add_waypoint_btn"
         style="@style/uisearchview"
         android:layout_width="match_parent"
@@ -103,9 +103,11 @@
         android:layout_marginStart="20dp"
         android:layout_marginTop="11dp"
         android:layout_marginEnd="20dp"
+        android:drawableStart="@drawable/ic_baseline_add_location_alt_24"
+        android:drawablePadding="8dp"
         android:hint="@string/Zwischenstopp"
-        android:imeOptions="actionSearch"
-        android:inputType="text"
+        android:focusable="false"
+        android:clickable="true"
         android:textSize="16sp" />
 
 

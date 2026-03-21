@@ -98,15 +98,26 @@ public class DemapOverlay extends Overlay {
     private volatile boolean mSessionWarming = false;
 
     public DemapOverlay(Context context) {
+        this(context, true);
+    }
+
+    public DemapOverlay(Context context, boolean warmup) {
         super();
         mContext = context;
 
-        // Session sofort im Hintergrund vorwärmen – bevor der User den Layer aktiviert
-        mSessionWarming = true;
-        new Thread(() -> {
-            initSessionViaWebView();
-            mSessionWarming = false;
-        }, "DemapSessionWarmup").start();
+        // Cookie bereits im CookieManager? Dann Session sofort als bereit markieren
+        CookieManager.getInstance().setAcceptCookie(true);
+        String existingCookies = CookieManager.getInstance().getCookie(BASE_URL);
+        if (existingCookies != null && existingCookies.contains("reactmap1")) {
+            Log.d(TAG, "Konstruktor – reactmap1 Cookie vorhanden, Session sofort bereit");
+            mSessionReady = true;
+        } else if (warmup) {
+            mSessionWarming = true;
+            new Thread(() -> {
+                initSessionViaWebView();
+                mSessionWarming = false;
+            }, "DemapSessionWarmup").start();
+        }
 
         mFillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mFillPaint.setStyle(Paint.Style.FILL);
@@ -162,15 +173,26 @@ public class DemapOverlay extends Overlay {
         mExecutor.submit(() -> {
             try {
                 if (!mSessionReady) {
-                    // Warmup-Thread läuft möglicherweise noch (gestartet im Konstruktor)
-                    // Warten bis er fertig ist (max. 10s)
-                    long deadline = System.currentTimeMillis() + 10000;
-                    while ((mSessionWarming || !mSessionReady) && System.currentTimeMillis() < deadline) {
-                        try { Thread.sleep(200); } catch (InterruptedException ignored) {}
+                    if (mSessionWarming) {
+                        // Warmup-Thread läuft noch — kurz warten (max 15s)
+                        long deadline = System.currentTimeMillis() + 15000;
+                        while (mSessionWarming && System.currentTimeMillis() < deadline) {
+                            try { Thread.sleep(300); } catch (InterruptedException ignored) {}
+                        }
                     }
-                    // Falls Warmup fehlschlug: eigene Session starten
+                    // Session noch nicht bereit → jetzt hier holen
                     if (!mSessionReady) {
+                        mSessionWarming = true;
                         initSessionViaWebView();
+                        mSessionWarming = false;
+                    }
+                    // Wenn immer noch nicht ready → abbrechen, mLastBox zurücksetzen
+                    // damit nächster refresh() es erneut versucht
+                    if (!mSessionReady) {
+                        Log.w(TAG, "Session konnte nicht hergestellt werden – refresh abgebrochen");
+                        mLastBox = null;
+                        mLoading = false;
+                        return;
                     }
                 }
                 if (mShowPokestops) loadPokestops(box, mapView);
@@ -178,6 +200,8 @@ public class DemapOverlay extends Overlay {
                 if (mShowStations)  loadStations(box, mapView);
             } catch (Exception e) {
                 Log.e(TAG, "Ladefehler", e);
+                // Box zurücksetzen damit der nächste refresh() es erneut versucht
+                mLastBox = null;
             } finally {
                 mLoading = false;
             }
@@ -191,11 +215,18 @@ public class DemapOverlay extends Overlay {
      * zu erhalten. Blockiert den aufrufenden (Hintergrund-)Thread bis zu 10s.
      */
     private void initSessionViaWebView() {
-        Log.d(TAG, "initSession – starte WebView für Cloudflare-Cookie...");
+        Log.d(TAG, "initSession – prüfe CookieManager...");
 
-        // Alten CookieManager-Zustand zurücksetzen
-        CookieManager.getInstance().removeAllCookies(null);
+        // Cookie prozessweit bereits vorhanden? (andere DemapOverlay-Instanz hat ihn schon geholt)
         CookieManager.getInstance().setAcceptCookie(true);
+        String existingCookies = CookieManager.getInstance().getCookie(BASE_URL);
+        if (existingCookies != null && existingCookies.contains("reactmap1")) {
+            Log.d(TAG, "initSession – reactmap1 Cookie bereits im CookieManager, kein WebView nötig");
+            mSessionReady = true;
+            return;
+        }
+
+        Log.d(TAG, "initSession – kein Cookie gefunden, starte WebView...");
 
         // CountDownLatch: gibt Hintergrundthread frei sobald Cookie da ist
         CountDownLatch latch = new CountDownLatch(1);
@@ -251,12 +282,15 @@ public class DemapOverlay extends Overlay {
             }
         });
 
-        // Hintergrundthread wartet max. 12 Sekunden
+        // Hintergrundthread wartet max. 15 Sekunden
         try {
-            boolean ok = latch.await(12, TimeUnit.SECONDS);
+            boolean ok = latch.await(15, TimeUnit.SECONDS);
             if (!ok) {
-                Log.w(TAG, "WebView-Timeout – versuche trotzdem GraphQL");
-                mSessionReady = true;
+                // Timeout — Session NICHT als ready markieren damit der nächste
+                // refresh() es erneut versucht statt mit ungültiger Session loszulegen
+                Log.w(TAG, "WebView-Timeout – Session nicht bereit, nächster Versuch bei refresh()");
+                mSessionWarming = false;
+                // mSessionReady bleibt false → refresh() startet neues initSession
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -268,7 +302,7 @@ public class DemapOverlay extends Overlay {
     private void loadPokestops(BoundingBox box, MapView mapView) throws Exception {
         Log.d(TAG, "loadPokestops()...");
         JSONObject resp = post(pokestopQuery(box));
-        if (resp == null) { Log.e(TAG, "loadPokestops – null Antwort"); return; }
+        if (resp == null) { Log.e(TAG, "loadPokestops – null Antwort"); mLastBox = null; return; }
         JSONArray arr = getArray(resp, "pokestops");
         if (arr == null) { Log.e(TAG, "loadPokestops – kein Array"); return; }
         Log.d(TAG, arr.length() + " Pokéstops erhalten");
@@ -287,7 +321,7 @@ public class DemapOverlay extends Overlay {
     private void loadGyms(BoundingBox box, MapView mapView) throws Exception {
         Log.d(TAG, "loadGyms()...");
         JSONObject resp = post(gymQuery(box));
-        if (resp == null) { Log.e(TAG, "loadGyms – null Antwort"); return; }
+        if (resp == null) { Log.e(TAG, "loadGyms – null Antwort"); mLastBox = null; return; }
         JSONArray arr = getArray(resp, "gyms");
         if (arr == null) { Log.e(TAG, "loadGyms – kein Array"); return; }
         Log.d(TAG, arr.length() + " Arenen erhalten");
@@ -317,7 +351,7 @@ public class DemapOverlay extends Overlay {
     private void loadStations(BoundingBox box, MapView mapView) throws Exception {
         Log.d(TAG, "loadStations()...");
         JSONObject resp = post(stationQuery(box));
-        if (resp == null) { Log.e(TAG, "loadStations – null Antwort"); return; }
+        if (resp == null) { Log.e(TAG, "loadStations – null Antwort"); mLastBox = null; return; }
         JSONArray arr = getArray(resp, "stations");
         if (arr == null) { Log.e(TAG, "loadStations – kein Array"); return; }
         Log.d(TAG, arr.length() + " Stationen erhalten");

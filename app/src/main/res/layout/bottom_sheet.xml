@@ -310,6 +310,27 @@
             android:textColor="@color/white"
             app:iconTint="@color/white" />
 
+        <!-- Erscheint wenn Service an einem Zwischenziel auf Nutzerbestätigung wartet -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/waypoint_continue_button"
+            style="@style/Widget.Material3.Button.Icon"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/please_enable_location_services"
+            android:layout_marginStart="18dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="18dp"
+            android:layout_marginBottom="8dp"
+            android:backgroundTint="#2E7D32"
+            android:gravity="center"
+            android:text="@string/waypoint_reached_continue"
+            android:lines="1"
+            android:visibility="gone"
+            app:icon="@drawable/ic_resume"
+            app:iconGravity="textStart"
+            android:textColor="@color/white"
+            app:iconTint="@color/white" />
+
     </RelativeLayout>
 
 
@@ -326,6 +347,21 @@
         android:textColor="@color/uicolor_text_high"
         android:lines="1"
         app:iconTint="@color/uicolor_text_high"/>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/gym_route_button"
+        style="@style/Widget.Material3.Button.TonalButton.Icon"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="15dp"
+        android:layout_marginEnd="15dp"
+        android:layout_marginTop="4dp"
+        android:text="@string/gym_route_btn"
+        android:backgroundTint="#1A2E7D32"
+        android:textColor="#81C784"
+        android:lines="1"
+        app:icon="@drawable/ic_location"
+        app:iconTint="#81C784"/>
 
     <androidx.cardview.widget.CardView
         android:id="@+id/active_route_info"

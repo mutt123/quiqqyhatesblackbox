@@ -9,7 +9,9 @@ public interface RouteSettingsImpl {
         void onActivityLoad();
         void onChallengePassed(String challengeResult);
         void onCancelClick();
-        void onContinueClick(int speed, int difference, float elevation, float elevationDiff, boolean isClosedRoute, boolean followSpeedLimits, boolean smoothTurns);
+        void onContinueClick(int speed, int difference, float elevation, float elevationDiff,
+                             int loopMode, int loopCount, boolean smoothTurns,
+                             int waypointNotifyMode);
     }
 
     interface UI {
@@ -26,6 +28,7 @@ public interface RouteSettingsImpl {
         int getOriginTimerSeconds();
         int getDestTimerMinutes();
         int getDestTimerSeconds();
-        boolean getFollowSpeedLimits();
+        /** Gibt den gewählten Benachrichtigungsmodus an Zwischenzielen zurück (0=keine, 1=ton, 2=vibration, 3=beides) */
+        int getWaypointNotifyMode();
     }
 }

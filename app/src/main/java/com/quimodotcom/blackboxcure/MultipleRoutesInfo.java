@@ -17,12 +17,22 @@ public class MultipleRoutesInfo implements Parcelable {
     private final OriginAndDestMarker originAndDestMarkers = new OriginAndDestMarker();
 
     private ArrayList<GeoPoint> mRoute;
-    private ArrayList<Integer> mSpeedLimits;
-    private boolean mFollowSpeedLimits = false;
     private boolean mSmoothTurns = false;
     private int mPauseSeconds = -1;
     private int mSpeed = -1;
     private int mSpeedDiff = -1;
+
+    /** Wiederholungs-Modus: 0=aus, 1=Ping-Pong (A↔B), 2=Schleife (A→B→zurück→A) */
+    public static final int LOOP_OFF      = 0;
+    public static final int LOOP_PINGPONG = 1;
+    public static final int LOOP_CIRCLE   = 2;
+    private int mLoopMode  = LOOP_OFF;
+    /** Anzahl Durchgänge, 0 = endlos */
+    private int mLoopCount = 0;
+
+    private ArrayList<GeoPoint> mWaypoints = new ArrayList<>();
+    /** Notification mode at waypoints: 0=none, 1=sound, 2=vibration, 3=both */
+    private int mWaypointNotifyMode = 0;
 
     private float mElevation = -1;
     private float mElevationDiff = -1;
@@ -45,9 +55,15 @@ public class MultipleRoutesInfo implements Parcelable {
         mAddress = in.readString();
         mDistance = in.readDouble();
         mTransport = (ERouteTransport) in.readSerializable();
-        mSpeedLimits = (ArrayList<Integer>) in.readSerializable();
-        mFollowSpeedLimits = in.readByte() != 0;
         mSmoothTurns = in.readByte() != 0;
+        mLoopMode    = in.readInt();
+        mLoopCount   = in.readInt();
+        mWaypointNotifyMode = in.readInt();
+        int wpCount = in.readInt();
+        mWaypoints = new ArrayList<>();
+        for (int i = 0; i < wpCount; i++) {
+            mWaypoints.add(new GeoPoint(in.readDouble(), in.readDouble()));
+        }
     }
 
     @Override
@@ -65,9 +81,17 @@ public class MultipleRoutesInfo implements Parcelable {
         parcel.writeString(mAddress);
         parcel.writeDouble(mDistance);
         parcel.writeSerializable(mTransport);
-        parcel.writeSerializable(mSpeedLimits);
-        parcel.writeByte((byte) (mFollowSpeedLimits ? 1 : 0));
         parcel.writeByte((byte) (mSmoothTurns ? 1 : 0));
+        parcel.writeInt(mLoopMode);
+        parcel.writeInt(mLoopCount);
+        parcel.writeInt(mWaypointNotifyMode);
+        parcel.writeInt(mWaypoints == null ? 0 : mWaypoints.size());
+        if (mWaypoints != null) {
+            for (GeoPoint wp : mWaypoints) {
+                parcel.writeDouble(wp.getLatitude());
+                parcel.writeDouble(wp.getLongitude());
+            }
+        }
     }
 
     public int getStartingPauseTime() {
@@ -122,28 +146,33 @@ public class MultipleRoutesInfo implements Parcelable {
         this.mRoute = (ArrayList<GeoPoint>) route;
     }
 
-    public void setSpeedLimits(List<Integer> speedLimits) {
-        this.mSpeedLimits = (ArrayList<Integer>) speedLimits;
-    }
-
-    public List<Integer> getSpeedLimits() {
-        return mSpeedLimits;
-    }
-
-    public void setFollowSpeedLimits(boolean follow) {
-        this.mFollowSpeedLimits = follow;
-    }
-
-    public boolean getFollowSpeedLimits() {
-        return mFollowSpeedLimits;
-    }
-
     public void setSmoothTurns(boolean smoothTurns) {
         this.mSmoothTurns = smoothTurns;
     }
 
     public boolean getSmoothTurns() {
         return mSmoothTurns;
+    }
+
+    public void setLoopMode(int mode)  { this.mLoopMode  = mode; }
+    public int  getLoopMode()          { return mLoopMode; }
+    public void setLoopCount(int count){ this.mLoopCount = count; }
+    public int  getLoopCount()         { return mLoopCount; }
+
+    public void setWaypoints(List<GeoPoint> waypoints) {
+        this.mWaypoints = waypoints != null ? new ArrayList<>(waypoints) : new ArrayList<>();
+    }
+
+    public ArrayList<GeoPoint> getWaypoints() {
+        return mWaypoints != null ? mWaypoints : new ArrayList<>();
+    }
+
+    public void setWaypointNotifyMode(int mode) {
+        this.mWaypointNotifyMode = mode;
+    }
+
+    public int getWaypointNotifyMode() {
+        return mWaypointNotifyMode;
     }
 
     public void setDistance(double distance) {

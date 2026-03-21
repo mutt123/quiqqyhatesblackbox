@@ -69,6 +69,7 @@ import com.quimodotcom.blackboxcure.MultipleRoutesInfo;
 import com.quimodotcom.blackboxcure.PermissionManager;
 import com.quimodotcom.blackboxcure.R;
 import com.quimodotcom.blackboxcure.RouteBuilder;
+import com.quimodotcom.blackboxcure.GymRouteHelper;
 import com.quimodotcom.blackboxcure.RouteManager;
 import com.quimodotcom.blackboxcure.RouteMarker.OriginAndDestMarker;
 import com.quimodotcom.blackboxcure.Services.FixedSpooferService;
@@ -292,9 +293,8 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
                 if (lat != 0d) { mSpoofedLat = lat; mSpoofedLon = lon; }
             }
         };
-        context.registerReceiver(updateUIReciver, filter);
         mDemapOverlay = new DemapOverlay(context);
-        mDemapOverlay.setEnabled(false); // startet deaktiviert
+        applyDemapPrefs();
         mMap.getOverlays().add(mDemapOverlay);
     }
 
@@ -371,8 +371,12 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
         mContext.stopService(new Intent(mContext, com.quimodotcom.blackboxcure.Services.RealtimeSpooferService.class));
 
         for (Overlay overlay : mMap.getOverlays()) {
-            if (!(overlay instanceof LocationMarker))
+            if (!(overlay instanceof LocationMarker) && !(overlay instanceof DemapOverlay))
                 mMap.getOverlays().remove(overlay);
+        }
+        // DemapOverlay sicherstellen (falls es doch entfernt wurde)
+        if (!mMap.getOverlays().contains(mDemapOverlay)) {
+            mMap.getOverlays().add(mDemapOverlay);
         }
 
         mUserInterface.setRouteInfo(View.GONE);
@@ -488,7 +492,7 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
             }
 
             @Override
-            public void onRouteBuilt(ArrayList<GeoPoint> points, ArrayList<Integer> speedLimits, double sourceLat, double sourceLong, double destLat, double destLong, double distance, ERouteTransport transport) {
+            public void onRouteBuilt(ArrayList<GeoPoint> points, double sourceLat, double sourceLong, double destLat, double destLong, double distance, ERouteTransport transport) {
                 mUserInterface.lockSearchBar(true);
                 mUserInterface.removeProgressLayout();
                 PrettyToast.show(mActivity, mActivity.getString(R.string.route_built), R.drawable.ic_route);
@@ -497,9 +501,6 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
                 mDistance += distancePoly;
                 MultipleRoutesInfo multipleRoutesInfo = new MultipleRoutesInfo();
                 multipleRoutesInfo.setRoute(points);
-                if (speedLimits != null) {
-                    multipleRoutesInfo.setSpeedLimits(speedLimits);
-                }
                 multipleRoutesInfo.setDistance(distancePoly);
                 multipleRoutesInfo.setTransport(transport);
 
@@ -552,7 +553,7 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
             @Override
             public void onRouteError(ArrayList<GeoPoint> points, double sourceLat, double sourceLong, double destLat, double destLong, double distance, ERouteTransport transport) {
                 PrettyToast.show(mActivity, mActivity.getString(R.string.failed_to_build_route), R.drawable.ic_route);
-                onRouteBuilt(points, null, sourceLat, sourceLong, destLat, destLong, distance, transport);
+                onRouteBuilt(points, sourceLat, sourceLong, destLat, destLong, distance, transport);
             }
 
             @Override
@@ -611,7 +612,6 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
 
             @Override
             public void onRouteBuilt(ArrayList<GeoPoint> points,
-                                     ArrayList<Integer> speedLimits,
                                      double sourceLat, double sourceLong,
                                      double destLat,   double destLong,
                                      double distance,  ERouteTransport transport) {
@@ -624,12 +624,13 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
 
                 MultipleRoutesInfo multipleRoutesInfo = new MultipleRoutesInfo();
                 multipleRoutesInfo.setRoute(points);
-                if (speedLimits != null) multipleRoutesInfo.setSpeedLimits(speedLimits);
                 multipleRoutesInfo.setDistance(distancePoly);
                 multipleRoutesInfo.setTransport(transport);
                 multipleRoutesInfo.setSpeed(-1);
                 multipleRoutesInfo.setSpeedDiff(-1);
                 multipleRoutesInfo.setStartingPauseTime(-1);
+                // Zwischenziele speichern damit der Service daran pausieren kann
+                if (!waypoints.isEmpty()) multipleRoutesInfo.setWaypoints(waypoints);
 
                 RouteManager.routes.add(multipleRoutesInfo);
                 isRoute = true;
@@ -680,7 +681,7 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
                                      double destLat,   double destLong,
                                      double distance,  ERouteTransport transport) {
                 PrettyToast.show(mActivity, mActivity.getString(R.string.failed_to_build_route), R.drawable.ic_route);
-                onRouteBuilt(points, null, sourceLat, sourceLong, destLat, destLong, distance, transport);
+                onRouteBuilt(points, sourceLat, sourceLong, destLat, destLong, distance, transport);
             }
 
             @Override
@@ -695,6 +696,10 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
         saveCurrentLocation();
         destroyLocationMarker();
         removeAllRoutes();
+        if (mReceiverRegistered) {
+            try { mContext.unregisterReceiver(updateUIReciver); } catch (IllegalArgumentException ignored) {}
+            mReceiverRegistered = false;
+        }
     }
 
     /**
@@ -879,37 +884,241 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
             //case R.id.rate_app:
             //    openGpForRate();
             //    break;
-
-            case R.id.toggle_demap:
-                boolean on = !mDemapOverlay.isEnabled();
-                mDemapOverlay.setEnabled(on);
-                item.setChecked(on);
-                mDemapOverlay.clearCache();
-                if (on) mDemapOverlay.refresh(mMap);
-                mMap.invalidate();
-                break;
-            case R.id.toggle_pokestops:
-                mDemapOverlay.setShowPokestops(!mDemapOverlay.isShowPokestops());
-                item.setChecked(mDemapOverlay.isShowPokestops());
-                mDemapOverlay.clearCache();
-                mDemapOverlay.refresh(mMap);
-                mMap.invalidate();
-                break;
-            case R.id.toggle_gyms:
-                mDemapOverlay.setShowGyms(!mDemapOverlay.isShowGyms());
-                item.setChecked(mDemapOverlay.isShowGyms());
-                mDemapOverlay.clearCache();
-                mDemapOverlay.refresh(mMap);
-                mMap.invalidate();
-                break;
-            case R.id.toggle_stations:
-                mDemapOverlay.setShowStations(!mDemapOverlay.isShowStations());
-                item.setChecked(mDemapOverlay.isShowStations());
-                mDemapOverlay.clearCache();
-                mDemapOverlay.refresh(mMap);
-                mMap.invalidate();
-                break;
         }
+    }
+
+    /** Liest demap-Einstellungen aus den Standard-SharedPrefs und wendet sie auf das Overlay an. */
+    private void applyDemapPrefs() {
+        android.content.SharedPreferences prefs =
+                androidx.preference.PreferenceManager.getDefaultSharedPreferences(mContext);
+        boolean enabled   = prefs.getBoolean("demap_enabled",    false);
+        boolean pokestops = prefs.getBoolean("demap_pokestops",  true);
+        boolean gyms      = prefs.getBoolean("demap_gyms",       true);
+        boolean stations  = prefs.getBoolean("demap_stations",   true);
+
+        mDemapOverlay.setShowPokestops(pokestops);
+        mDemapOverlay.setShowGyms(gyms);
+        mDemapOverlay.setShowStations(stations);
+        mDemapOverlay.setEnabled(enabled);
+
+        if (enabled) {
+            mDemapOverlay.clearCache();
+            mDemapOverlay.refresh(mMap);
+        }
+    }
+
+    /** Öffnet den Arena-Routen-Dialog */
+    public void showGymRouteDialog() {
+        android.app.Dialog dialog = new android.app.Dialog(mContext);
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+        dialog.setContentView(R.layout.dialog_gym_route);
+        if (dialog.getWindow() != null)
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+
+        // Radius-SeekBar: Werte 100m–5000m in ~50 Schritten
+        // progress 0→100m, 47→5000m (nicht-linear: erst 100m-Schritte, dann 500m)
+        android.widget.SeekBar seekBar = dialog.findViewById(R.id.radius_seekbar);
+        android.widget.TextView radiusLabel = dialog.findViewById(R.id.radius_label);
+        final int[] radiusValues = buildRadiusValues();
+        seekBar.setMax(radiusValues.length - 1);
+        seekBar.setProgress(9); // default ~500m
+        radiusLabel.setText(radiusValues[9] >= 1000
+                ? (radiusValues[9]/1000) + " km" : radiusValues[9] + " m");
+        seekBar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(android.widget.SeekBar s, int p, boolean u) {
+                int v = radiusValues[p];
+                radiusLabel.setText(v >= 1000 ? (v/1000) + " km" : v + " m");
+            }
+            @Override public void onStartTrackingTouch(android.widget.SeekBar s) {}
+            @Override public void onStopTrackingTouch(android.widget.SeekBar s) {}
+        });
+
+        // Team-Auswahl (Multi-Select, Kombinationen möglich)
+        // selectedTeams: leeres Set = alle Teams; sonst nur die gewählten
+        final java.util.Set<Integer> selectedTeams = new java.util.HashSet<>();
+        android.widget.TextView[] teamBtns = {
+                dialog.findViewById(R.id.team_all),
+                dialog.findViewById(R.id.team_neutral),
+                dialog.findViewById(R.id.team_mystic),
+                dialog.findViewById(R.id.team_valor),
+                dialog.findViewById(R.id.team_instinct)
+        };
+        // teamIds[0] = -1 steht für "Alle" (kein Filter)
+        final int[] teamIds = {
+                GymRouteHelper.TEAM_ALL, GymRouteHelper.TEAM_NEUTRAL,
+                GymRouteHelper.TEAM_MYSTIC, GymRouteHelper.TEAM_VALOR, GymRouteHelper.TEAM_INSTINCT
+        };
+
+        // Hilfsmethode: Button-Alphawerte aktualisieren
+        Runnable updateBtnAlpha = () -> {
+            boolean allActive = selectedTeams.isEmpty();
+            teamBtns[0].setAlpha(allActive ? 1.0f : 0.45f);
+            for (int j = 1; j < teamBtns.length; j++) {
+                boolean active = selectedTeams.contains(teamIds[j]);
+                teamBtns[j].setAlpha(active ? 1.0f : 0.45f);
+            }
+        };
+        // Initial: "Alle" aktiv
+        updateBtnAlpha.run();
+
+        // "Alle"-Button: deselektiert alle Einzel-Teams
+        teamBtns[0].setOnClickListener(v -> {
+            selectedTeams.clear();
+            updateBtnAlpha.run();
+        });
+
+        // Einzel-Team-Buttons: toggle, deselektiert "Alle"
+        for (int i = 1; i < teamBtns.length; i++) {
+            final int teamId = teamIds[i];
+            teamBtns[i].setOnClickListener(v -> {
+                if (selectedTeams.contains(teamId)) {
+                    selectedTeams.remove(teamId);
+                    // Wenn nichts mehr selektiert → automatisch "Alle"
+                } else {
+                    selectedTeams.add(teamId);
+                }
+                updateBtnAlpha.run();
+            });
+        }
+
+        android.widget.Spinner notifySpinner = dialog.findViewById(R.id.notify_spinner);
+
+        dialog.findViewById(R.id.btn_cancel).setOnClickListener(v -> dialog.dismiss());
+        dialog.findViewById(R.id.btn_start).setOnClickListener(v -> {
+            int radius = radiusValues[seekBar.getProgress()];
+            // Kopie übergeben damit der Dialog-State nicht weiterläuft
+            java.util.Set<Integer> teamsCopy = new java.util.HashSet<>(selectedTeams);
+            int notify = notifySpinner.getSelectedItemPosition();
+            dialog.dismiss();
+            buildGymRoute(radius, teamsCopy, notify);
+        });
+
+        dialog.show();
+    }
+
+    private int[] buildRadiusValues() {
+        // 100, 200, …, 1000, 1500, 2000, …, 5000, 7500, 10000, 15000, 20000
+        java.util.List<Integer> vals = new java.util.ArrayList<>();
+        for (int v = 100;  v <= 1000;  v += 100) vals.add(v);
+        for (int v = 1500; v <= 5000;  v += 500) vals.add(v);
+        for (int v = 7500; v <= 20000; v += 2500) vals.add(v);
+        int[] arr = new int[vals.size()];
+        for (int i = 0; i < vals.size(); i++) arr[i] = vals.get(i);
+        return arr;
+    }
+
+    private void buildGymRoute(int radiusMeters, java.util.Set<Integer> teamFilter, int notifyMode) {
+        double centerLat = mMap.getMapCenter().getLatitude();
+        double centerLon = mMap.getMapCenter().getLongitude();
+
+        PrettyToast.show(mActivity, mActivity.getString(R.string.gym_route_loading), -1);
+
+        GymRouteHelper helper = new GymRouteHelper(mContext);
+        helper.build(centerLat, centerLon, radiusMeters, teamFilter,
+                new GymRouteHelper.Callback() {
+                    @Override
+                    public void onResult(java.util.List<GeoPoint> waypoints, int count) {
+                        mActivity.runOnUiThread(() -> {
+                            if (waypoints.isEmpty()) {
+                                PrettyToast.show(mActivity,
+                                        mActivity.getString(R.string.gym_route_none_found), -1);
+                                return;
+                            }
+
+                            // Letzte Arena = Ziel, Rest = Waypoints
+                            GeoPoint dest = waypoints.get(waypoints.size() - 1);
+                            java.util.List<GeoPoint> midpoints = waypoints.size() > 1
+                                    ? waypoints.subList(0, waypoints.size() - 1)
+                                    : new java.util.ArrayList<>();
+
+                            // Wie onRoute() aber mit automatisch erzeugten Punkten
+                            mUserInterface.setWhereToAddress(
+                                    String.format("%.5f, %.5f", dest.getLatitude(), dest.getLongitude()));
+
+                            RouteBuilder builder = new RouteBuilder(
+                                    mActivity,
+                                    centerLat, centerLon,
+                                    dest.getLatitude(), dest.getLongitude(),
+                                    ERouteTransport.ROUTE_WALK,
+                                    midpoints,
+                                    null
+                            );
+
+                            builder.build(new RouteBuilder.IRouteBuilder() {
+                                @Override public void prepare() {
+                                    mUserInterface.inflateProgressLayout(view -> {
+                                        builder.cancel();
+                                        mUserInterface.removeProgressLayout();
+                                        removeAllRoutes();
+                                    });
+                                }
+
+                                @Override
+                                public void onRouteBuilt(ArrayList<GeoPoint> points,
+                                                         double sLat, double sLon,
+                                                         double dLat, double dLon,
+                                                         double distance,
+                                                         ERouteTransport transport) {
+                                    mUserInterface.lockSearchBar(true);
+                                    mUserInterface.removeProgressLayout();
+                                    PrettyToast.show(mActivity,
+                                            mActivity.getString(R.string.route_built), R.drawable.ic_route);
+
+                                    double distPoly = MapUtil.drawPath(mMap, points);
+                                    mDistance += distPoly;
+
+                                    MultipleRoutesInfo info = new MultipleRoutesInfo();
+                                    info.setRoute(points);
+                                    info.setDistance(distPoly);
+                                    info.setTransport(transport);
+                                    info.setSpeed(-1);
+                                    info.setSpeedDiff(-1);
+                                    info.setStartingPauseTime(-1);
+                                    // Arenen-Waypoints + Notify-Mode setzen
+                                    info.setWaypoints(new ArrayList<>(midpoints));
+                                    info.setWaypointNotifyMode(notifyMode);
+
+                                    RouteManager.routes.add(info);
+                                    isRoute = true;
+
+                                    SpoofingPlaceInfo.sourceLat = sLat;
+                                    SpoofingPlaceInfo.sourceLng = sLon;
+                                    SpoofingPlaceInfo.destLat   = dLat;
+                                    SpoofingPlaceInfo.destLng   = dLon;
+                                    SpoofingPlaceInfo.transport = transport;
+                                    info.setAddress(mUserInterface.getWhereToAddress());
+
+                                    setRouteOriginDestMarkers(info);
+                                    mUserInterface.toggleRemoveRoute(View.VISIBLE);
+                                    mUserInterface.startSpoofingVisibility(View.VISIBLE);
+                                    mMap.invalidate();
+                                }
+
+                                @Override
+                                public void onRouteError(ArrayList<GeoPoint> points,
+                                                         double sLat, double sLon,
+                                                         double dLat, double dLon,
+                                                         double dist, ERouteTransport t) {
+                                    PrettyToast.show(mActivity,
+                                            mActivity.getString(R.string.failed_to_build_route),
+                                            R.drawable.ic_route);
+                                    onRouteBuilt(points, sLat, sLon, dLat, dLon, dist, t);
+                                }
+
+                                @Override public void captchaResponse() {
+                                    mUserInterface.removeProgressLayout();
+                                }
+                            });
+                        });
+                    }
+
+                    @Override
+                    public void onError(String reason) {
+                        mActivity.runOnUiThread(() ->
+                                PrettyToast.show(mActivity,
+                                        mActivity.getString(R.string.gym_route_none_found) + ": " + reason, -1));
+                    }
+                });
     }
 
     private void openTelegramChannel() {
@@ -1102,18 +1311,30 @@ public class MapsPresenter implements MapsImpl.PresenterImpl {
         mMap.invalidate();
     }
 
+    private boolean mReceiverRegistered = false;
+
     @Override
     public void onPause() {
         removeLocationUpdates();
         mMap.onPause();
-        mContext.unregisterReceiver(updateUIReciver);
+        if (mReceiverRegistered) {
+            try { mContext.unregisterReceiver(updateUIReciver); } catch (IllegalArgumentException ignored) {}
+            mReceiverRegistered = false;
+        }
     }
 
     @Override
     public void onResume() {
         registerLocationUpdates();
         mMap.onResume();
-        mContext.registerReceiver(updateUIReciver, filter);
+        if (!mReceiverRegistered) {
+            mContext.registerReceiver(updateUIReciver, filter);
+            mReceiverRegistered = true;
+        }
+
+        // Demap-Einstellungen neu laden (Nutzer könnte sie in Settings geändert haben)
+        applyDemapPrefs();
+        mMap.invalidate();
 
         if (PermissionManager.isServiceRunning(mContext, JoystickService.class))
             mUserInterface.setJoystickMsgVisiblity(View.VISIBLE);

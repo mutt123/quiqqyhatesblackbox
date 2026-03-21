@@ -34,7 +34,7 @@ public class RouteBuilder {
 
     public interface IRouteBuilder {
         void prepare();
-        void onRouteBuilt(ArrayList<GeoPoint> points, ArrayList<Integer> speedLimits,
+        void onRouteBuilt(ArrayList<GeoPoint> points,
                           double sourceLat, double sourceLong,
                           double destLat,   double destLong,
                           double distance, ERouteTransport transport);
@@ -84,7 +84,6 @@ public class RouteBuilder {
                 activity.runOnUiThread(() ->
                         listener.onRouteBuilt(
                                 response.result,
-                                response.speedLimits,
                                 originLat, originLng,
                                 destLat,   destLng,
                                 response.distance,

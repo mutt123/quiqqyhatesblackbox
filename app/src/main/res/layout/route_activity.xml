@@ -121,27 +121,45 @@
 
 
     <com.google.android.material.checkbox.MaterialCheckBox
-        android:id="@+id/follow_speed_limit_checkbox"
+        android:id="@+id/smooth_turns_checkbox"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_below="@id/speeds_container"
         android:layout_marginStart="10dp"
         android:layout_marginTop="10dp"
-        android:text="Follow road speed limits" />
-
-    <com.google.android.material.checkbox.MaterialCheckBox
-        android:id="@+id/smooth_turns_checkbox"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/follow_speed_limit_checkbox"
-        android:layout_marginStart="10dp"
         android:text="Smooth turns (Chaikin Curve)" />
+
+    <!-- Benachrichtigung an Zwischenzielen -->
+    <LinearLayout
+        android:id="@+id/waypoint_notify_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/smooth_turns_checkbox"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginEnd="10dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/waypoint_notify_label"
+            android:textColor="@color/uicolor_text_medium"
+            android:layout_marginEnd="8dp" />
+
+        <Spinner
+            android:id="@+id/waypoint_notify_spinner"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:entries="@array/waypoint_notify_options" />
+    </LinearLayout>
 
     <LinearLayout
         android:id="@+id/elevation_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@id/smooth_turns_checkbox"
+        android:layout_below="@id/waypoint_notify_container"
         android:layout_marginStart="10dp"
         android:layout_marginTop="20dp"
         android:orientation="vertical">
@@ -268,15 +286,29 @@
                     android:layout_marginEnd="10dp"
                     android:layout_weight="1">
 
-                    <TextView
-                        android:id="@+id/parking_time"
-                        style="@style/uisearchview"
-                        android:layout_width="wrap_content"
-                        android:layout_height="40dp"
-                        android:drawableStart="@drawable/ic_baseline_timer_24"
-                        android:gravity="center"
-                        android:hint="01:00 s."
-                        android:inputType="number" />
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <SeekBar
+                            android:id="@+id/parking_time_seekbar"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:max="60"
+                            android:progress="0"
+                            android:layout_marginEnd="10dp" />
+
+                        <TextView
+                            android:id="@+id/parking_time"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center_horizontal"
+                            android:text="0 s"
+                            android:textColor="@color/uicolor_text_medium"
+                            android:textSize="12sp" />
+
+                    </LinearLayout>
                 </RelativeLayout>
 
             </LinearLayout>
@@ -305,35 +337,121 @@
 
                 <RelativeLayout
                     android:layout_width="wrap_content"
-                    android:layout_height="40dp"
+                    android:layout_height="wrap_content"
                     android:layout_marginStart="2dp"
                     android:layout_marginTop="5dp"
                     android:layout_marginEnd="10dp"
                     android:layout_weight="1">
 
-                    <TextView
-                        android:id="@+id/datlp_timepicker"
-                        style="@style/uisearchview"
-                        android:layout_width="wrap_content"
-                        android:layout_height="40dp"
-                        android:drawableStart="@drawable/ic_baseline_timer_24"
-                        android:gravity="center"
-                        android:hint="01:00 s."
-                        android:inputType="number" />
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <SeekBar
+                            android:id="@+id/datlp_seekbar"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:max="60"
+                            android:progress="0"
+                            android:layout_marginEnd="10dp" />
+
+                        <TextView
+                            android:id="@+id/datlp_timepicker"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center_horizontal"
+                            android:text="0 s"
+                            android:textColor="@color/uicolor_text_medium"
+                            android:textSize="12sp" />
+
+                    </LinearLayout>
                 </RelativeLayout>
 
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 
-    <CheckBox
-        android:id="@+id/closed_route"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:id="@+id/loop_container"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_below="@id/elevation_container"
         android:layout_marginStart="10dp"
-        android:layout_marginTop="5dp"
-        android:text="@string/closed_route" />
+        android:layout_marginTop="10dp"
+        android:layout_marginEnd="10dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/loop_mode_label"
+            android:textColor="@color/uicolor_text_medium"
+            android:layout_marginBottom="4dp" />
+
+        <RadioGroup
+            android:id="@+id/loop_mode_group"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <RadioButton
+                android:id="@+id/loop_off"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/loop_off"
+                android:checked="true" />
+
+            <RadioButton
+                android:id="@+id/loop_pingpong"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/loop_pingpong" />
+
+            <RadioButton
+                android:id="@+id/loop_circle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/loop_circle" />
+
+        </RadioGroup>
+
+        <LinearLayout
+            android:id="@+id/loop_count_container"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/loop_count_label"
+                android:textColor="@color/uicolor_text_medium"
+                android:layout_marginEnd="8dp" />
+
+            <EditText
+                android:id="@+id/loop_count"
+                style="@style/uisearchview"
+                android:layout_width="80dp"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                android:hint="@string/loop_count_hint"
+                android:text="0"
+                android:maxLength="4" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/loop_count_suffix"
+                android:textColor="@color/uicolor_text_medium"
+                android:layout_marginStart="8dp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
 
     <com.facebook.shimmer.ShimmerFrameLayout
         android:id="@+id/detecting_altitude"

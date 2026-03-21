@@ -70,5 +70,33 @@
             android:summary="150 ms."/>
 
     </PreferenceCategory>
+    <PreferenceCategory android:title="@string/demap_category_title">
+
+        <rikka.material.preference.MaterialSwitchPreference
+            android:defaultValue="false"
+            android:icon="@drawable/ic_location"
+            android:key="demap_enabled"
+            android:summary="@string/demap_enabled_summary"
+            android:title="@string/demap_enabled_title" />
+
+        <rikka.material.preference.MaterialSwitchPreference
+            android:defaultValue="true"
+            android:key="demap_pokestops"
+            android:title="@string/demap_pokestops"
+            android:dependency="demap_enabled" />
+
+        <rikka.material.preference.MaterialSwitchPreference
+            android:defaultValue="true"
+            android:key="demap_gyms"
+            android:title="@string/demap_gyms"
+            android:dependency="demap_enabled" />
+
+        <rikka.material.preference.MaterialSwitchPreference
+            android:defaultValue="true"
+            android:key="demap_stations"
+            android:title="@string/demap_stations"
+            android:dependency="demap_enabled" />
+
+    </PreferenceCategory>
 
 </PreferenceScreen>

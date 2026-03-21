@@ -61,6 +61,10 @@ import com.quimodotcom.blackboxcure.Services.RealtimeSpooferService;
 import com.quimodotcom.blackboxcure.Services.RouteSpooferService;
 import com.quimodotcom.blackboxcure.MainServiceControl;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.IntentFilter;
+
 /*
  * Created by LittleAngry on 25.12.18 (macOS 10.12)
  * */
@@ -75,6 +79,8 @@ public class MapsActivity extends Edge2EdgeActivity implements MapsImpl.UIImpl, 
 
     private TextView mSearchLayout;
     private MaterialButton mStopContainer;
+    private MaterialButton mWaypointContinueButton;
+    private BroadcastReceiver mWaypointReceiver;
     private CardView mActiveRouteLayout;
     private MaterialButtonToggleGroup mModeToggleGroup;
     private MaterialButton mStartRealtime;
@@ -129,6 +135,17 @@ public class MapsActivity extends Edge2EdgeActivity implements MapsImpl.UIImpl, 
 
         MaterialButton mContinueRouteButton = findViewById(R.id.continue_route_button);
         mContinueRouteButton.setOnClickListener(v -> mPresenter.continueRoute());
+
+        mWaypointContinueButton = findViewById(R.id.waypoint_continue_button);
+        mWaypointContinueButton.setOnClickListener(v -> {
+            // Broadcast an Service → waitingForUserAtWaypoint = false
+            sendBroadcast(new Intent(RouteSpooferService.ACTION_WAYPOINT_CONTINUE));
+            showWaypointContinue(false);
+        });
+
+        MaterialButton gymRouteButton = findViewById(R.id.gym_route_button);
+        if (gymRouteButton != null)
+            gymRouteButton.setOnClickListener(v -> mPresenter.showGymRouteDialog());
 
         mJoystickMessage = findViewById(R.id.joystick_mode_message);
 
@@ -436,6 +453,10 @@ public class MapsActivity extends Edge2EdgeActivity implements MapsImpl.UIImpl, 
     protected void onPause() {
         super.onPause();
         mPresenter.onPause();
+        if (mWaypointReceiver != null) {
+            try { unregisterReceiver(mWaypointReceiver); } catch (IllegalArgumentException ignored) {}
+            mWaypointReceiver = null;
+        }
     }
 
     @SuppressLint("WrongConstant")
@@ -466,6 +487,22 @@ public class MapsActivity extends Edge2EdgeActivity implements MapsImpl.UIImpl, 
     protected void onResume() {
         super.onResume();
         mPresenter.onResume();
+
+        // Waypoint-Reached Receiver
+        mWaypointReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                showWaypointContinue(true);
+            }
+        };
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(mWaypointReceiver,
+                    new IntentFilter(RouteSpooferService.ACTION_WAYPOINT_REACHED),
+                    Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(mWaypointReceiver,
+                    new IntentFilter(RouteSpooferService.ACTION_WAYPOINT_REACHED));
+        }
     }
 
     @Override
@@ -514,6 +551,15 @@ public class MapsActivity extends Edge2EdgeActivity implements MapsImpl.UIImpl, 
     public void toggleContinueRoute(int visibility) {
         MaterialButton btn = findViewById(R.id.continue_route_button);
         if (btn != null) btn.setVisibility(visibility);
+    }
+
+    @Override
+    public void showWaypointContinue(boolean show) {
+        if (mWaypointContinueButton == null) return;
+        mWaypointContinueButton.setVisibility(show ? View.VISIBLE : View.GONE);
+        // Stop/Pause während Waypoint-Pause ausblenden um Ablenkung zu minimieren
+        if (mStopContainer != null)
+            mStopContainer.setVisibility(show ? View.GONE : View.VISIBLE);
     }
 
     @Override

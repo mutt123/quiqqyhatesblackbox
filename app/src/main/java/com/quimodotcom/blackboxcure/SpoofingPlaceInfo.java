@@ -2,6 +2,7 @@ package com.quimodotcom.blackboxcure;
 
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Overlay;
+import com.quimodotcom.blackboxcure.DemapOverlay;
 
 import com.quimodotcom.blackboxcure.Enumerations.ERouteTransport;
 
@@ -44,7 +45,7 @@ public class SpoofingPlaceInfo {
 
     public void removeRoute() {
         for (Overlay overlay : mMap.getOverlays()) {
-            if (!(overlay instanceof LocationMarker))
+            if (!(overlay instanceof LocationMarker) && !(overlay instanceof DemapOverlay))
                 mMap.getOverlays().remove(overlay);
         }
         mMap.invalidate();

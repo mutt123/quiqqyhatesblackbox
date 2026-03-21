@@ -6,7 +6,8 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
 import android.view.animation.AnimationUtils;
-import android.widget.CheckBox;
+import android.widget.RadioGroup;
+import com.quimodotcom.blackboxcure.MultipleRoutesInfo;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -37,19 +38,23 @@ public class RouteSettingsActivity extends FragmentActivity implements RouteSett
     private EditText elevationDiff;
     private MaterialButton mContinue;
 
-    private CheckBox mClosedRoute;
-    private MaterialCheckBox mFollowSpeedLimit;
+    private RadioGroup mLoopModeGroup;
+    private android.widget.LinearLayout mLoopCountContainer;
+    private EditText mLoopCountField;
     private MaterialCheckBox mSmoothTurns;
+    private android.widget.Spinner mWaypointNotifySpinner;
 
     private View mPauseAtStartingContainer;
     private View mLatestPointDelayContainer;
     private ShimmerFrameLayout mDetectingAltitude;
 
-    private int mOriginTimerMinutes;
-    private int mOriginTimerSeconds;
+    private android.widget.SeekBar mOriginSeekBar;
+    private android.widget.SeekBar mDestSeekBar;
+    private TextView mOriginTimerLabel;
+    private TextView mDestTimerLabel;
 
-    private int mDestTimerMinutes;
-    private int mDestTimerSeconds;
+    // Jeder Schritt = 5 Sekunden (max = 60 Schritte → 300 s = 5 min)
+    private static final int TIMER_STEP_SEC = 5;
 
     private RouteSettingsPresenter mPresenter;
 
@@ -91,10 +96,17 @@ public class RouteSettingsActivity extends FragmentActivity implements RouteSett
         differenceField = findViewById(R.id.speed_difference);
         elevation = findViewById(R.id.elevation);
         elevationDiff = findViewById(R.id.elevation_different);
-        mClosedRoute = findViewById(R.id.closed_route);
-        mFollowSpeedLimit = findViewById(R.id.follow_speed_limit_checkbox);
+        mLoopModeGroup    = findViewById(R.id.loop_mode_group);
+        mLoopCountContainer = findViewById(R.id.loop_count_container);
+        mLoopCountField   = findViewById(R.id.loop_count);
+
+        mLoopModeGroup.setOnCheckedChangeListener((group, checkedId) -> {
+            boolean showCount = (checkedId == R.id.loop_pingpong || checkedId == R.id.loop_circle);
+            mLoopCountContainer.setVisibility(showCount ? View.VISIBLE : View.GONE);
+        });
         mSmoothTurns = findViewById(R.id.smooth_turns_checkbox);
         mDetectingAltitude = findViewById(R.id.detecting_altitude);
+        mWaypointNotifySpinner = findViewById(R.id.waypoint_notify_spinner);
 
         mLatestPointDelayContainer = findViewById(R.id.delay_at_the_last_point);
         mLatestPointDelayTimer = findViewById(R.id.datlp_timepicker);
@@ -111,11 +123,6 @@ public class RouteSettingsActivity extends FragmentActivity implements RouteSett
         speedUnit.setText(unitName);
         speedDiffUnit.setText(unitName);
 
-        mFollowSpeedLimit.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            speedField.setEnabled(!isChecked);
-            // differenceField should not be disabled when "Follow speed limit" is checked
-        });
-
         mPresenter = new RouteSettingsPresenter(this);
 
         mContinue.setOnClickListener(new OnSingleClickListener() {
@@ -123,9 +130,8 @@ public class RouteSettingsActivity extends FragmentActivity implements RouteSett
             public void onSingleClick(View v) {
                 boolean speedValid = !speedField.getText().toString().isEmpty() && TextUtils.isDigitsOnly(speedField.getText().toString());
                 boolean diffValid = !differenceField.getText().toString().isEmpty() && TextUtils.isDigitsOnly(differenceField.getText().toString());
-                boolean isFollowSpeedLimit = mFollowSpeedLimit.isChecked();
 
-                if ((speedValid || isFollowSpeedLimit) && diffValid) {
+                if (speedValid && diffValid) {
                     String elevationStr = RouteSettingsActivity.this.elevation.getText().toString();
                     String elevationDiffStr = RouteSettingsActivity.this.elevationDiff.getText().toString();
 
@@ -136,8 +142,7 @@ public class RouteSettingsActivity extends FragmentActivity implements RouteSett
                         try {
                             elevation = Float.parseFloat(elevationStr);
                         } catch (NumberFormatException e) {
-                            UIEffects.TextView.attachErrorWithShake(RouteSettingsActivity.this, RouteSettingsActivity.this.elevation, () -> {
-                            });
+                            UIEffects.TextView.attachErrorWithShake(RouteSettingsActivity.this, RouteSettingsActivity.this.elevation, () -> {});
                             return;
                         }
                     }
@@ -146,28 +151,15 @@ public class RouteSettingsActivity extends FragmentActivity implements RouteSett
                         try {
                             elevationDiff = Float.parseFloat(elevationDiffStr);
                         } catch (NumberFormatException e) {
-                            UIEffects.TextView.attachErrorWithShake(RouteSettingsActivity.this, RouteSettingsActivity.this.elevationDiff, () -> {
-                            });
+                            UIEffects.TextView.attachErrorWithShake(RouteSettingsActivity.this, RouteSettingsActivity.this.elevationDiff, () -> {});
                             return;
                         }
                     }
-                    int currentSpeed = isFollowSpeedLimit ? 50 : Integer.parseInt(speedField.getText().toString());
+
+                    int currentSpeed = Integer.parseInt(speedField.getText().toString());
                     int currentDiff = Integer.parseInt(differenceField.getText().toString());
-                    mPresenter.onContinueClick(currentSpeed, currentDiff, elevation, elevationDiff, mClosedRoute.isChecked(), isFollowSpeedLimit, mSmoothTurns.isChecked());
-                } else if (isFollowSpeedLimit) {
-                    // if speed limits checked and diff is empty, default diff to 0.
-                    String elevationStr = RouteSettingsActivity.this.elevation.getText().toString();
-                    String elevationDiffStr = RouteSettingsActivity.this.elevationDiff.getText().toString();
-
-                    float elevation = 0;
-                    float elevationDiff = 0;
-
-                    if (!elevationStr.isEmpty()) elevation = Float.parseFloat(elevationStr);
-                    if (!elevationDiffStr.isEmpty()) elevationDiff = Float.parseFloat(elevationDiffStr);
-
-                    int currentDiff = diffValid ? Integer.parseInt(differenceField.getText().toString()) : 0;
-
-                    mPresenter.onContinueClick(50, currentDiff, elevation, elevationDiff, mClosedRoute.isChecked(), true, mSmoothTurns.isChecked());
+                    mPresenter.onContinueClick(currentSpeed, currentDiff, elevation, elevationDiff,
+                            getLoopMode(), getLoopCount(), mSmoothTurns.isChecked(), getWaypointNotifyMode());
                 }
 
                 mPresenter.saveElevation(Float.parseFloat(elevation.getText().toString()), Float.parseFloat(elevationDiff.getText().toString()));
@@ -183,33 +175,27 @@ public class RouteSettingsActivity extends FragmentActivity implements RouteSett
             }
         });
 
-        // Origin timer
-        mPauseAtStartingTimer.setOnClickListener(view -> {
+        mOriginSeekBar  = findViewById(R.id.parking_time_seekbar);
+        mOriginTimerLabel = mPauseAtStartingTimer;   // TextView zeigt "0 s"
+        mDestSeekBar    = findViewById(R.id.datlp_seekbar);
+        mDestTimerLabel = mLatestPointDelayTimer;
 
-            TimePickerDialog tm = new TimePickerDialog(this, (minutes, seconds, format) -> {
-                mOriginTimerMinutes = minutes;
-                mOriginTimerSeconds = seconds;
-
-
-                mPauseAtStartingTimer.setText(format);
-
-            });
-            tm.show();
-
+        mOriginSeekBar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(android.widget.SeekBar s, int p, boolean u) {
+                int secs = p * TIMER_STEP_SEC;
+                mOriginTimerLabel.setText(secs == 0 ? "0 s" : (secs >= 60 ? (secs / 60) + " min " + (secs % 60) + " s" : secs + " s"));
+            }
+            @Override public void onStartTrackingTouch(android.widget.SeekBar s) {}
+            @Override public void onStopTrackingTouch(android.widget.SeekBar s) {}
         });
 
-        // Dest timer
-        mLatestPointDelayTimer.setOnClickListener(view -> {
-
-            TimePickerDialog tm = new TimePickerDialog(this, (minutes, seconds, format) -> {
-                mDestTimerMinutes = minutes;
-                mDestTimerMinutes = seconds;
-
-                mLatestPointDelayTimer.setText(format);
-
-            });
-            tm.show(getString(R.string.delay_at_the_last_point), "");
-
+        mDestSeekBar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(android.widget.SeekBar s, int p, boolean u) {
+                int secs = p * TIMER_STEP_SEC;
+                mDestTimerLabel.setText(secs == 0 ? "0 s" : (secs >= 60 ? (secs / 60) + " min " + (secs % 60) + " s" : secs + " s"));
+            }
+            @Override public void onStartTrackingTouch(android.widget.SeekBar s) {}
+            @Override public void onStopTrackingTouch(android.widget.SeekBar s) {}
         });
 
         mLatestPointDelayContainer.setVisibility(View.GONE);
@@ -275,41 +261,63 @@ public class RouteSettingsActivity extends FragmentActivity implements RouteSett
         TextView activityTitle = findViewById(R.id.title);
         activityTitle.setText(R.string.spoofing);
         speedContainer.setVisibility(View.GONE);
-        mClosedRoute.setVisibility(View.GONE);
-
+        View loopContainer = findViewById(R.id.loop_container);
+        if (loopContainer != null) loopContainer.setVisibility(View.GONE);
         mPauseAtStartingContainer.setVisibility(View.GONE);
         mLatestPointDelayContainer.setVisibility(View.GONE);
+        View wpNotify = findViewById(R.id.waypoint_notify_container);
+        if (wpNotify != null) wpNotify.setVisibility(View.GONE);
     }
 
     @Override
     public void addMoreRoute() {
-        mClosedRoute.setVisibility(View.GONE);
+        View loopContainer = findViewById(R.id.loop_container);
+        if (loopContainer != null) loopContainer.setVisibility(View.GONE);
         mLatestPointDelayContainer.setVisibility(View.GONE);
     }
 
     @Override
     public int getOriginTimerMinutes() {
-        return mOriginTimerMinutes;
+        int secs = (mOriginSeekBar != null ? mOriginSeekBar.getProgress() : 0) * TIMER_STEP_SEC;
+        return secs / 60;
     }
 
     @Override
     public int getOriginTimerSeconds() {
-        return mOriginTimerSeconds;
+        int secs = (mOriginSeekBar != null ? mOriginSeekBar.getProgress() : 0) * TIMER_STEP_SEC;
+        return secs % 60;
     }
 
     @Override
     public int getDestTimerMinutes() {
-        return mDestTimerMinutes;
+        int secs = (mDestSeekBar != null ? mDestSeekBar.getProgress() : 0) * TIMER_STEP_SEC;
+        return secs / 60;
     }
 
     @Override
     public int getDestTimerSeconds() {
-        return mDestTimerSeconds;
+        int secs = (mDestSeekBar != null ? mDestSeekBar.getProgress() : 0) * TIMER_STEP_SEC;
+        return secs % 60;
+    }
+
+    public int getLoopMode() {
+        if (mLoopModeGroup == null) return MultipleRoutesInfo.LOOP_OFF;
+        int id = mLoopModeGroup.getCheckedRadioButtonId();
+        if (id == R.id.loop_pingpong) return MultipleRoutesInfo.LOOP_PINGPONG;
+        if (id == R.id.loop_circle)   return MultipleRoutesInfo.LOOP_CIRCLE;
+        return MultipleRoutesInfo.LOOP_OFF;
+    }
+
+    public int getLoopCount() {
+        if (mLoopCountField == null) return 0;
+        try { return Math.max(0, Integer.parseInt(mLoopCountField.getText().toString().trim())); }
+        catch (NumberFormatException e) { return 0; }
     }
 
     @Override
-    public boolean getFollowSpeedLimits() {
-        return mFollowSpeedLimit.isChecked();
+    public int getWaypointNotifyMode() {
+        if (mWaypointNotifySpinner == null) return 0;
+        return mWaypointNotifySpinner.getSelectedItemPosition(); // 0=keine,1=ton,2=vibration,3=beides
     }
 
 
